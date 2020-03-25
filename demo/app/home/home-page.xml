@@ -1,0 +1,21 @@
+<Page class="page"
+    navigatingTo="onNavigatingTo" 
+    xmlns="http://schemas.nativescript.org/tns.xsd">
+    
+    <ActionBar class="action-bar">
+        <Label class="action-bar-title" text="Home"></Label>
+    </ActionBar>
+
+    <StackLayout>
+        <!-- Add your page content here -->
+        <Button text="Create file" tap="{{onCreateFile}}"></Button>
+        <Button text="Read file" tap="{{onReadFile}}"></Button>
+        <Button text="Download file" tap="{{onDownloadFile}}"></Button>
+        <Button text="Delete file" tap="{{onDeleteFile}}"></Button>
+        <Button text="Find file" tap="{{onFindFile}}"></Button>
+        <Button text="Create folder" tap="{{onCreateFolder}}"></Button>
+        <Button text="Disconnect account" tap="{{onPressToDisconnect}}"></Button>
+        <ActivityIndicator loaded="{{ onBusyChanged }}"></ActivityIndicator>
+
+    </StackLayout>
+</Page>
