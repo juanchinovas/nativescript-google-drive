@@ -7,5 +7,4 @@ context.onmessage = (msg) => {
     const aa = java.util.Collections.singletonList("root");
     console.log(msg);
     console.log(aa.toString());
-}
-
+};

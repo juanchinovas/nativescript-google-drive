@@ -1,9 +1,10 @@
 import { Observable } from "tns-core-modules/data/observable";
 import * as applicationSetting from "tns-core-modules/application-settings";
+import { isIOS } from "tns-core-modules/platform";
 import { GoogleDriveHelper, SPACES, FileInfo } from "nativescript-google-drive";
 import { ActivityIndicator } from "tns-core-modules/ui/activity-indicator";
 import { confirm } from "tns-core-modules/ui/dialogs";
-//import * as  MyWorker from "nativescript-worker-loader!../test-worker";
+// import * as  MyWorker from "nativescript-worker-loader!../test-worker";
 import * as  MyWorker from "nativescript-worker-loader!nativescript-google-drive/thread-worker";
 
 export class HomeViewModel extends Observable {
@@ -12,7 +13,7 @@ export class HomeViewModel extends Observable {
 
     constructor() {
         super();
-        this.onInit();
+        // this.onInit();
     }
 
     onBusyChanged(data: any) {
@@ -21,17 +22,23 @@ export class HomeViewModel extends Observable {
     }
 
     onInit() {
-        GoogleDriveHelper.singInOnGoogleDrive(SPACES.APP_DATA_FOLDER, MyWorker)
+        const googleClientID = "680729366979-1bf7aoceaf52ijj7k8fmcbavbstvbbcm.apps.googleusercontent.com";
+        GoogleDriveHelper.singInOnGoogleDrive({
+            space: SPACES.APP_DATA_FOLDER,
+            worker: MyWorker,
+            clientId: googleClientID
+        })
         .then((helper: GoogleDriveHelper) => {
             this.driveHelper = helper;
             try {
-                //this.onFindFolder();
-                //this.onFindFileInFolder();
-                this.onListFileFromParent();
-            } catch(e) {
+                // this.onFindFolder();
+                this.onFindFileInFolder();
+                // this.onListFileFromParent();
+            } catch (e) {
                 console.log(e);
             }
         })
+        .catch(console.log);
     }
 
 
@@ -45,19 +52,20 @@ export class HomeViewModel extends Observable {
 
         confirm(options).then((result: boolean) => {
             if (result) {
-                this.driveHelper.disconnectAccount()
-                .then(done=> {
+                this.driveHelper.signOut()
+                .then(done => {
                     console.log("done.: ", done);
                 })
-                .catch(console.log)
+                .catch(console.log);
             }
         });
     }
 
     onCreateFile() {
         this.loader.busy = true;
+        const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
         const metadata: FileInfo = <FileInfo>{
-            name: "back-up-test.json",
+            name,
             content: `
             {
                 "name": "J. novas",
@@ -76,7 +84,7 @@ export class HomeViewModel extends Observable {
 
             this.loader.busy = false;
         })
-        .catch((a)=> {
+        .catch((a) => {
             console.log(a);
             this.loader.busy = false;
         });
@@ -92,7 +100,7 @@ export class HomeViewModel extends Observable {
                 console.log(file);
                 this.loader.busy = false;
             })
-            .catch((a)=> {
+            .catch((a) => {
                 console.log(a);
                 this.loader.busy = false;
             });
@@ -115,7 +123,7 @@ export class HomeViewModel extends Observable {
                 });
                 this.loader.busy = false;
             })
-            .catch((a)=> {
+            .catch((a) => {
                 console.log(a);
                 this.loader.busy = false;
             });
@@ -132,7 +140,7 @@ export class HomeViewModel extends Observable {
                 console.log(file);
                 this.loader.busy = false;
             })
-            .catch((a)=> {
+            .catch((a) => {
                 console.log(a);
                 this.loader.busy = false;
             });
@@ -141,13 +149,14 @@ export class HomeViewModel extends Observable {
 
     onFindFile() {
         this.loader.busy = true;
-        this.driveHelper.findFile("back-up-test.json")
+        const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
+        this.driveHelper.findFile(name)
         .then(file => {
             console.log(file);
             applicationSetting.setString("FileId", file[0].id);
             this.loader.busy = false;
         })
-        .catch((a)=> {
+        .catch((a) => {
             console.log(a);
             this.loader.busy = false;
         });
@@ -166,30 +175,31 @@ export class HomeViewModel extends Observable {
             applicationSetting.setString("FolderId", folderId);
             this.loader.busy = false;
         })
-        .catch((a)=> {
+        .catch((a) => {
             console.log(a);
             this.loader.busy = false;
         });
     }
 
     onFindFolder() {
-        //this.loader.busy = true;
+        // this.loader.busy = true;
         this.driveHelper.findFolder("config-folder")
         .then(foldersInfo => {
             console.log(foldersInfo);
-            //applicationSetting.setString("FolderId", folderId);
-            //this.loader.busy = false;
+            // applicationSetting.setString("FolderId", folderId);
+            // this.loader.busy = false;
         })
-        .catch((a)=> {
+        .catch((a) => {
             console.log(a);
-            //this.loader.busy = false;
+            // this.loader.busy = false;
         });
     }
 
     onFindFileInFolder() {
-        //this.loader.busy = true;
+        // this.loader.busy = true;
+        const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
         const folderMetadata: FileInfo = <FileInfo>{
-            name: "back-up-test.json",
+            name,
             content: null,
             description: "A test create a json file",
             mimeType: "application/json",
@@ -198,27 +208,27 @@ export class HomeViewModel extends Observable {
         this.driveHelper.searchFiles(folderMetadata)
         .then(filesInfo => {
             console.log(filesInfo);
-            //applicationSetting.setString("FolderId", folderId);
-            //this.loader.busy = false;
+            // applicationSetting.setString("FolderId", folderId);
+            // this.loader.busy = false;
         })
-        .catch((a)=> {
+        .catch((a) => {
             console.log(a);
-            //this.loader.busy = false;
+            // this.loader.busy = false;
         });
     }
 
     onListFileFromParent() {
-        //this.loader.busy = true;
+        // this.loader.busy = true;
         const parentFolderId = applicationSetting.getString("FolderId", null);
         this.driveHelper.listFiles(parentFolderId)
         .then(filesInfo => {
             console.log(filesInfo);
-            //applicationSetting.setString("FolderId", folderId);
-            //this.loader.busy = false;
+            // applicationSetting.setString("FolderId", folderId);
+            // this.loader.busy = false;
         })
-        .catch((a)=> {
+        .catch((a) => {
             console.log(a);
-            //this.loader.busy = false;
+            // this.loader.busy = false;
         });
     }
 }

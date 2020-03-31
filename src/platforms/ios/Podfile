@@ -1,0 +1,3 @@
+# Google API
+pod 'GoogleSignIn', '~> 5.0'
+pod 'GoogleAPIClientForREST/Drive', '~> 1.3.11'

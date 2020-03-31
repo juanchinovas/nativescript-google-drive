@@ -1,7 +1,7 @@
 import { File } from "tns-core-modules/file-system";
-import { IDriveManager, FileInfo, SPACES } from "./google-drive.common";
+import { IDriveManager, FileInfo, SPACES, Config } from "./google-drive.common";
 export declare class GoogleDriveHelper implements IDriveManager {
-    static singInOnGoogleDrive(space: SPACES, worker: Worker): Promise<GoogleDriveHelper>;
+    static singInOnGoogleDrive(config: Config): Promise<GoogleDriveHelper>;
     createFile(fileInfo: FileInfo): Promise<string>;
     readFile(driveFileId: string): Promise<string>;
     deleteFile(driveFileId: string): Promise<boolean>;
@@ -12,6 +12,6 @@ export declare class GoogleDriveHelper implements IDriveManager {
     createFolder(fileInfo: FileInfo): Promise<string>;
     findFile(name: string, mimeType?: string): Promise<Array<FileInfo>>;
     findFolder(name: string): Promise<Array<FileInfo>>;    
-    disconnectAccount(): Promise<boolean>;
+    signOut(): Promise<boolean>;
 }
-export { FileInfo, SPACES } from './google-drive.common';
+export { FileInfo, SPACES, Config } from './google-drive.common';

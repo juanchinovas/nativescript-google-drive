@@ -9,13 +9,14 @@ context.onmessage = (msg: MessageEvent) => {
     // Don't use eval if you don't really need it
     let fn = func && eval(`(${func})`);
     const fnArgs = getFuncArgsAsArray(args);
-    let valueReturned: any = null;
 
     // Execute function
     if (fn && fnArgs) {
-        valueReturned = fn.apply(null, fnArgs);
+        const valueReturned = fn.apply(null, fnArgs);
+        if (valueReturned) /*iOS*/{
+            onCompleted(valueReturned);
+        }
     }
-    (<any>global).postMessage(valueReturned);
 }
 
 /**
@@ -47,4 +48,8 @@ function getFuncArgsAsArray(args: any): Array<any> {
 function getNativeReference(key: string): any {
     const ref = NativeObjectPool.get(key);
     return ref;
+}
+
+function onCompleted(data: any) {
+    (<any>global).postMessage(data);
 }

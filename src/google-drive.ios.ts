@@ -1,3 +1,636 @@
-export class GoogleDriveHelper {
+import { ios } from "tns-core-modules/application";
+import { File, knownFolders } from "tns-core-modules/file-system";
+import { IDriveManager, FileInfo, SPACES, Config } from "./google-drive.common";
+import { NativeObjectPool } from "nativescript-native-object-pool";
+
+let WorkerThread: Worker;
+let driveSpace: SPACES;
+/**
+ * Google drive helper class
+ * @class
+ */
+export class GoogleDriveHelper implements IDriveManager {
+
+    /**
+     * This method start Google SignIn flow and ask for Gogole Drive permissions to the user 
+     * and initialize a drive helper class
+     * @static @function
+     *
+     * @param {Config} config
+     *
+     * @returns {Promise<GoogleDriveHelper>}
+     */
+    static singInOnGoogleDrive(config: Config): Promise<GoogleDriveHelper> {
+        return new Promise((res, rej) => {
+            const _delegate = GIDSignInDelegateImpl.new();
+            _delegate.resolvePromise = res;
+            _delegate.rejectPromise = rej;
+            
+            const googleSignInService = GIDSignIn.sharedInstance();
+            googleSignInService.uiDelegate = _delegate;
+            googleSignInService.delegate = _delegate;
+            googleSignInService.shouldFetchBasicProfile = false;
+            googleSignInService.scopes = NSArray.arrayWithArray(<any>[driveHelper.getScope(config.space), kGTLRAuthScopeDriveFile]);
+            (googleSignInService as any).presentingViewController = ios.rootController;
+            
+            googleSignInService.clientID = config.clientId;
+            
+            if ((googleSignInService as any).hasPreviousSignIn()) {
+                (googleSignInService as any).restorePreviousSignIn();
+            } else {
+                googleSignInService.signIn();
+            }
+
+            WorkerThread = config.worker;
+            driveSpace = config.space;
+        });
+    }
+
+    /**
+     * Create a file with the specific metadata in Google Drive
+     *
+     * @param {FileInfo} fileInfo file metadata
+     *
+     * @returns {Promise<string>} created file id
+     */
+    createFile(fileInfo: FileInfo): Promise<string> {
+        return new Promise((res, rej) => {
+            fileInfo.mimeType = fileInfo.mimeType || "text/plain";
+
+            function createFileHelperFn(fileInfo:FileInfo, googleDriveService: GTLRDriveService, parent: string) {
+                
+                const metadata = GTLRDrive_File.new();
+                metadata.parents = NSArray.arrayWithArray(<any>[parent]);
+                metadata.name = fileInfo.name;
+                metadata.descriptionProperty = fileInfo.description;
+                metadata.mimeType = fileInfo.mimeType;
+
+                let uploader: GTLRDriveQuery_FilesCreate = null;
+
+                if (fileInfo.content) {
+                    let content: NSString = NSString.stringWithString(fileInfo.content.toString());
+                    const uploadParams = GTLRUploadParameters
+                    .uploadParametersWithDataMIMEType(content.dataUsingEncoding(NSUTF8StringEncoding), metadata.mimeType);
+                    uploader = GTLRDriveQuery_FilesCreate.queryWithObjectUploadParameters(metadata, uploadParams);
+                } else {
+                    uploader = GTLRDriveQuery_FilesCreate.queryWithObjectUploadParameters(metadata, null);
+                }
+                uploader.fields = "id";
+
+                googleDriveService.executeQueryCompletionHandler(uploader, (ticket, file: GTLRDrive_File, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(file.identifier);
+                });
+            }
+
+            executeThread({
+                func: createFileHelperFn,
+                args:{
+                    fileInfo,
+                    googleDriveService: "-",
+                    parent: fileInfo.parentId || driveSpace
+                }
+            }, res, rej);
+        });
+    }
+
+    /**
+     * Read a text plain file
+     * @param {string} driveFileId
+     *
+     * @returns {Promise<string>} text contained in the file
+     */
+    readFile(driveFileId: string): Promise<string> {
+        return new Promise((res, rej) => {
+            function readFileHelperFn(driveFileId: string, googleDriveService: GTLRDriveService) {
+                const driveFileGet: GTLRDriveQuery_FilesGet =  GTLRDriveQuery_FilesGet.queryForMediaWithFileId(driveFileId);
+                googleDriveService.executeQueryCompletionHandler(driveFileGet, (ticket, data: GTLRDataObject, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(NSString.stringWithCStringLength(data.data.bytes, data.data.length));
+                });
+            }
+
+            executeThread({
+                func: readFileHelperFn,
+                args:{
+                    driveFileId,
+                    googleDriveService: "-"
+                }
+            }, res, rej);
+        });
+    }
+
+    /**
+     * Delete a file
+     * @param {string} driveFileId
+     *
+     * @returns {Promise<boolean>} deleted or not
+     */
+    deleteFile(driveFileId: string): Promise<boolean> {
+       return new Promise((res, rej) => {
+            function deleteFileHelperFn(driveFileId: string, googleDriveService: GTLRDriveService) {
+                const driveFileDelete: GTLRDriveQuery_FilesDelete =  GTLRDriveQuery_FilesDelete.queryWithFileId(driveFileId);
+                googleDriveService.executeQueryCompletionHandler(driveFileDelete, (ticket, file, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(true);
+                });
+            }
+
+            executeThread({
+                func: deleteFileHelperFn,
+                args:{
+                    driveFileId,
+                    googleDriveService: "-"
+                }
+            }, res, rej);
+        });
+    }
+
+    /**
+     * Download a file
+     * @param {string} driveFileId
+     *
+     * @returns {Promise<File>} file downloaded
+     */
+    downloadFile(driveFileId: string): Promise<File> {
+        return new Promise((res, rej) => {
+            function downloadFileHelperFn(driveFileId: string, googleDriveService:any, path: string) {
+                const driveFileGet: GTLRDriveQuery_FilesGet =  GTLRDriveQuery_FilesGet.queryForMediaWithFileId(driveFileId);
+                googleDriveService.executeQueryCompletionHandler(driveFileGet, (ticket, file: GTLRDataObject, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    const fileManager = NSFileManager.defaultManager;
+
+                    if (fileManager.fileExistsAtPath(path)) {
+                        fileManager.removeItemAtPathError(path);
+                    }
+                    const done = NSFileManager.defaultManager.createFileAtPathContentsAttributes(path, file.data, null);
+                    if (!done) throw `Couldn't save the file at ${path}`; 
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(path);
+                });
+            }
+            executeThread({
+                func: downloadFileHelperFn,
+                args:{
+                    driveFileId,
+                    googleDriveService: "-",
+                    path: `${knownFolders.temp().path}/${driveFileId}`
+                }
+            }, (result: any) => {
+                res(File.fromPath(result));
+            }, rej);
+        });
+    }
+
+    /**
+     * Upload a file with the specific metadata in Google Drive
+     *
+     * @param {FileInfo} fileInfo file metadata
+     *
+     * @returns {Promise<string>} uploaded file id
+     */
+    uploadFile(fileInfo: FileInfo): Promise<string> {
+        return new Promise((res, rej) => {
+
+            function uploadFileHelperFn(fileInfo: any, googleDriveService:any, spaces: any) {
+                const metadata = GTLRDrive_File.new();
+                metadata.parents = NSArray.arrayWithArray(<any>[parent]);
+                metadata.name = fileInfo.name;
+                metadata.descriptionProperty = fileInfo.description;
+                metadata.mimeType = fileInfo.mimeType;
+
+                let uploader: GTLRDriveQuery_FilesCreate = null;
+                if (typeof(fileInfo.content) !== "string" && fileInfo.content._path) {
+                    throw "File couldn't be uploaded, file info content is not a File";
+                }
+                const fileHandler = NSFileHandle.fileHandleForReadingAtPath(fileInfo.content._path);
+                const uploadParams = GTLRUploadParameters.uploadParametersWithFileHandleMIMEType(fileHandler, fileInfo.mimeType);
+
+                uploader = GTLRDriveQuery_FilesCreate.queryWithObjectUploadParameters(metadata, uploadParams);
+                uploader.fields = "id";
+
+                googleDriveService.executeQueryCompletionHandler(uploader, (ticket, file: GTLRDrive_File, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(file.identifier);
+                });
+            }
+
+            executeThread({
+                func: uploadFileHelperFn,
+                args:{
+                    fileInfo,
+                    googleDriveService: "-",
+                    spaces: fileInfo.parentId || driveSpace
+                }
+            }, res, rej);
+
+         });
+    }
+
+    /**
+     * List all the files contained in the parent or root folder
+     * @param {string} parentId parent folder OPTIONAL
+     *
+     * @returns {Promise<Array<FileInfo>>} file list
+     */
+    listFiles(parentId?:  string): Promise<Array<FileInfo>> {
+        return new Promise((res, rej) => {
+
+            function listFilesHelperFn(parentId: any, googleDriveService:any, spaces: any) {
+                const driveFileList: GTLRDriveQuery_FilesList =  GTLRDriveQuery_FilesList.query();
+                driveFileList.q = `'${parentId || 'root'}' in parents`;
+                driveFileList.spaces = spaces;
+                driveFileList.fields = "files(id,name,size,createdTime,description,mimeType,parents)";
+
+                googleDriveService.executeQueryCompletionHandler(driveFileList, (ticket, result: GTLRDrive_FileList, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    const files = result.files;
+                    const results = [];
+                    for (let i = 0, len = files.count; i < len; i++) {
+                        results.push(<FileInfo>{
+                            content: null,
+                            name: files.objectAtIndex(i).name,
+                            description: files.objectAtIndex(i).descriptionProperty,
+                            mimeType: files.objectAtIndex(i).mimeType,
+                            parentId: files.objectAtIndex(i).parents.componentsJoinedByString(",").toString(),
+                            id: files.objectAtIndex(i).identifier,
+                            size: files.objectAtIndex(i).size,
+                            createdTime: new Date(files.objectAtIndex(i).createdTime.date)
+                        });
+                    }
+
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(results);
+                });
+            };
+
+            executeThread({
+                func: listFilesHelperFn,
+                args:{
+                    parentId: (parentId || null),
+                    googleDriveService: "-",
+                    spaces: parentId || driveSpace
+                }
+            }, res, rej);
+        });
+    }
+
+    /**
+     * Search files in Google Drive with the given metadata.
+     *
+     * @param {FileInfo} fileInfo file metadata to search for
+     *
+     * @returns {Promise<Array<FileInfo>>} file list matched
+     */
+    searchFiles(fileInfo: FileInfo): Promise<Array<FileInfo>> {
+        return new Promise((res, rej) => {
+            function searchFilesHelperFn(fileInfo: any, googleDriveService:any, spaces: any) {
+                let queryString = `'${fileInfo.parentId || 'root'}' in parents`;
+                for (let key in fileInfo) {
+                    if (fileInfo[key] && ["parentId", "content", "description"].indexOf(key) === -1) {
+                        queryString +=  ` and ${key} = '${fileInfo[key]}'`;
+                    }
+                }
+                
+                const driveFileList: GTLRDriveQuery_FilesList =  GTLRDriveQuery_FilesList.query();
+                driveFileList.q = queryString;
+                driveFileList.spaces = spaces;
+                driveFileList.fields = "files(id,name,size,createdTime,description,mimeType,parents)";
+
+                googleDriveService.executeQueryCompletionHandler(driveFileList, (ticket, result: GTLRDrive_FileList, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    const files = result.files;
+                    const results = [];
+                    for (let i = 0, len = files.count; i < len; i++) {
+                        results.push(<FileInfo>{
+                            content: null,
+                            name: files.objectAtIndex(i).name,
+                            description: files.objectAtIndex(i).descriptionProperty,
+                            mimeType: files.objectAtIndex(i).mimeType,
+                            parentId: files.objectAtIndex(i).parents.componentsJoinedByString(",").toString(),
+                            id: files.objectAtIndex(i).identifier,
+                            size: files.objectAtIndex(i).size,
+                            createdTime: new Date(files.objectAtIndex(i).createdTime.date)
+                        });
+                    }
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(results);
+                });
+            }
+            executeThread({
+                func: searchFilesHelperFn,
+                args:{
+                    fileInfo,
+                    googleDriveService: "-",
+                    spaces: driveSpace
+                }
+            }, res, rej);
+        });
+    }
+
+    /**
+     * Create a folder with the given metadata. the content property is ignore
+     * @param {FileInfo} fileInfo folder metadata
+     *
+     * @returns {Promise<string>} created folder id
+     */
+    createFolder(fileInfo: FileInfo): Promise<string> {
+        return new Promise((res, rej) => {
+            function searchFilesHelperFn(fileInfo: any, googleDriveService:any, parent: any) {
+               const metadata = GTLRDrive_File.new();
+                metadata.parents = NSArray.arrayWithArray(<any>[parent]);
+                metadata.name = fileInfo.name;
+                metadata.descriptionProperty = fileInfo.description;
+                metadata.mimeType = "application/vnd.google-apps.folder";
+
+                let uploader: GTLRDriveQuery_FilesCreate = null;
+
+                if (fileInfo.content) {
+                    let content: NSString = NSString.stringWithString(fileInfo.content.toString());
+                    const uploadParams = GTLRUploadParameters
+                    .uploadParametersWithDataMIMEType(content.dataUsingEncoding(NSUTF8StringEncoding), metadata.mimeType);
+                    uploader = GTLRDriveQuery_FilesCreate.queryWithObjectUploadParameters(metadata, uploadParams);
+                } else {
+                    uploader = GTLRDriveQuery_FilesCreate.queryWithObjectUploadParameters(metadata, null);
+                }
+                uploader.fields = "id";
+
+                googleDriveService.executeQueryCompletionHandler(uploader, (ticket, file: GTLRDrive_File, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(file.identifier);
+                });
+            };
+
+            executeThread({
+                func: searchFilesHelperFn,
+                args:{
+                    fileInfo,
+                    googleDriveService: "-",
+                    roots: fileInfo.parentId || driveSpace
+                }
+            }, res, rej);
+        });
+    }
+
+    /**
+     * Find files by name and mime type.
+     *
+     * @param {string} name
+     * @param {string} mimeType
+     *
+     * @returns {Promise<Array<FileInfo>>} file list
+     */
+    findFile(name: string, mimeType?: string): Promise<Array<FileInfo>> {
+        return new Promise((res, rej) => {
+            function findFileHelperFn(name: any, mimeType: any, googleDriveService:any, spaces: any) {
+                let queryString = `name = '${name}' ${ ( mimeType ? "and mimeType ='${mimeType}'" : '' ) }`;
+
+                const driveFileList: GTLRDriveQuery_FilesList =  GTLRDriveQuery_FilesList.query();
+                driveFileList.q = queryString;
+                driveFileList.spaces = spaces;
+                driveFileList.fields = "files(id,name,size,createdTime,description,mimeType,parents)";
+
+                googleDriveService.executeQueryCompletionHandler(driveFileList, (ticket, result: GTLRDrive_FileList, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    const files = result.files;
+                    const results = [];
+                    for (let i = 0, len = files.count; i < len; i++) {
+                        results.push(<FileInfo>{
+                            content: null,
+                            name: files.objectAtIndex(i).name,
+                            description: files.objectAtIndex(i).descriptionProperty,
+                            mimeType: files.objectAtIndex(i).mimeType,
+                            parentId: files.objectAtIndex(i).parents.componentsJoinedByString(",").toString(),
+                            id: files.objectAtIndex(i).identifier,
+                            size: files.objectAtIndex(i).size,
+                            createdTime: new Date(files.objectAtIndex(i).createdTime.date)
+                        });
+                    }
+
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(results);
+                });
+            };
+            executeThread({
+                func: findFileHelperFn,
+                args:{
+                    name,
+                    mimeType: (mimeType || null),
+                    googleDriveService: "-",
+                    spaces: driveSpace
+                }
+            }, res, rej);
+        });
+    }
+
+    /**
+     * Find folders by name
+     *
+     * @param {string} name
+     *
+     * @returns {Promise<Array<FileInfo>>} folder list
+     */
+    findFolder(name: string): Promise<Array<FileInfo>> {
+        return new Promise((res, rej) => {
+            function findFolderHelperFn(name: any, googleDriveService:any, spaces:any) {
+                let queryString = `name = '${name}' and mimeType ='application/vnd.google-apps.folder'`;
+                const driveFileList: GTLRDriveQuery_FilesList =  GTLRDriveQuery_FilesList.query();
+                driveFileList.q = queryString;
+                driveFileList.spaces = spaces;
+                driveFileList.fields = "files(id,name,size,createdTime,description,mimeType,parents)";
+
+                googleDriveService.executeQueryCompletionHandler(driveFileList, (ticket, result: GTLRDrive_FileList, error) => {
+                    if (error) {
+                        throw error.localizedDescription;
+                    }
+                    const files = result.files;
+                    const results = [];
+                    for (let i = 0, len = files.count; i < len; i++) {
+                        results.push(<FileInfo>{
+                            content: null,
+                            name: files.objectAtIndex(i).name,
+                            description: files.objectAtIndex(i).descriptionProperty,
+                            mimeType: files.objectAtIndex(i).mimeType,
+                            parentId: files.objectAtIndex(i).parents.componentsJoinedByString(",").toString(),
+                            id: files.objectAtIndex(i).identifier,
+                            size: files.objectAtIndex(i).size,
+                            createdTime: new Date(files.objectAtIndex(i).createdTime.date)
+                        });
+                    }
+
+                    /*This is on worker*/
+                    // @ts-ignore
+                    onCompleted(results);
+                });
+            }
+            
+            executeThread({
+                func: findFolderHelperFn,
+                args:{
+                    name,
+                    googleDriveService: "-",
+                    spaces: driveSpace
+                }
+            }, res, rej);
+        });
+    }
+
+    /**
+     * Disconnect the google drive account
+     * @returns {Promise<boolean>}
+     */
+    signOut(): Promise<boolean> {
+        return new Promise((res, rej) => {
+            try {
+                NativeObjectPool.remove("googleDriveService");
+                GIDSignIn.sharedInstance().signOut();
+                res(true);
+            } catch(e) {
+                rej(e);
+            }
+        });
+    }
+}
+
+
+/**
+ * Helper class to get the root folder on drive to create and save, look at and delete a file or folder
+ * @object
+ */
+
+const driveHelper = Object.create(null);
+
+/**
+ * Determine which google drive scope use
+ *
+ * @param {SPACES} space selected scope
+ *
+ * @returns {string} Google drive scope
+ */
+driveHelper.getScope = function(space: SPACES): string {
+    return space === SPACES.DRIVE ?
+        kGTLRAuthScopeDrive : kGTLRAuthScopeDriveAppdata;
+};
+
+/**
+ * Prepare the data and function to sent to the 
+ * second thread to be executed and used
+ */
+driveHelper.prepareThreadData = function(data: any) {
+    const reg = /\s+(?=typeof|function|const|let|if|new|throw|return|\.|\[|\]|\{|\}|;)|(\n+|\r+)|\/\/.*/img;
+    data.func = data.func && data.func.toString().replace(reg, "") || null;
+    return data;
+};
+
+/**
+ * Create an worker thread and send data to it
+ * @param {any} data 
+ * @param {Function} res 
+ * @param {Function} rej 
+ */
+function executeThread(data: any, res: Function, rej: Function) {
+    // @ts-ignore
+    const worker = new WorkerThread();
+
+    worker.postMessage(driveHelper.prepareThreadData(data));
+
+    worker.onmessage = (msg: MessageEvent) => {
+        worker.terminate();
+        res(msg.data);
+    };
+    worker.onerror = (err: ErrorEvent)=> {
+        worker.terminate();
+        rej(err.message);
+    };
+}
+
+/**
+ * GIDSignInDelegate implementation, to handler when user cancel or signIn successfully.
+ * This class resolve or reject the JS Promise.
+ */
+class GIDSignInDelegateImpl extends NSObject implements GIDSignInDelegate {
+    resolvePromise: Function;
+    rejectPromise: Function;
+
+    static ObjCProtocols = [GIDSignInDelegate];
+    static new(): GIDSignInDelegateImpl {
+        return <GIDSignInDelegateImpl>super.new();
+    }
+
+    signInDidDisconnectWithUserWithError?(signIn: GIDSignIn, user: GIDGoogleUser, error: NSError): void {
+        if (error) {
+            this.rejectPromise({code: error.code, msg: error.localizedDescription});
+            return;
+        }
+        this.resolvePromise(true);
+    }
+
+    signInDidSignInForUserWithError(signIn: GIDSignIn, user: GIDGoogleUser, error: NSError): void {
+        if (error) {
+            this.rejectPromise({ code: error.code, msg: error.localizedDescription });
+            return;
+        }
+        const googleDriveService = GTLRDriveService.new();
+        googleDriveService.authorizer = user.authentication.fetcherAuthorizer();
+
+        NativeObjectPool.remove("googleDriveService");
+        NativeObjectPool.add("googleDriveService", googleDriveService);
+
+        this.resolvePromise(new GoogleDriveHelper());
+    }
+
+    signInPresentViewController(signIn: any, viewController: any) {
+        const uiview = ios.rootController;
+        uiview.presentViewControllerAnimatedCompletion(
+            viewController,
+            true,
+            null
+        );
+    }
+
+    signInDismissViewController(signIn: any, viewController: any) {
+        viewController.dismissViewControllerAnimatedCompletion(
+            true,
+            null
+        );
+    }
+
+    signInWillDispatchError?(signIn: GIDSignIn, error: NSError) {
+        console.log("#signInWillDispatchError()");
+    }
 
 }
+
+export * from './google-drive.common';

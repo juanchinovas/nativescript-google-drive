@@ -35,3 +35,12 @@ export enum SPACES {
     DRIVE = "drive",
     APP_DATA_FOLDER = "appDataFolder"
 }
+
+/**
+ * Interface to initialize the plugin
+ */
+export interface Config {
+    space: SPACES,
+    worker: Worker,
+    clientId?: string
+}

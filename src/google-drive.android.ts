@@ -1,6 +1,6 @@
 import { android as androidContext, AndroidApplication, AndroidActivityResultEventData } from "tns-core-modules/application";
 import { File, knownFolders } from "tns-core-modules/file-system";
-import { IDriveManager, FileInfo, SPACES } from "./google-drive.common";
+import { IDriveManager, FileInfo, SPACES, Config } from "./google-drive.common";
 import { NativeObjectPool } from "nativescript-native-object-pool";
 
 const REQUEST_CODE_SIGN_IN: number = 0;
@@ -13,16 +13,17 @@ let driveSpace: SPACES;
 export class GoogleDriveHelper implements IDriveManager {
 
     /**
-     * A static method to ask for Google Drive permission to the user and initialize a drive helper class
+     * This method start Google SignIn flow and ask for Gogole Drive permissions to the user
+     * and initialize a drive helper class
      * @static @function
      *
-     * @param {SPACES} space
+     * @param {Config} config
      *
      * @returns {Promise<GoogleDriveHelper>}
      */
-    static singInOnGoogleDrive(space: SPACES, worker: Worker): Promise<GoogleDriveHelper> {
+    static singInOnGoogleDrive(config: Config): Promise<GoogleDriveHelper> {
         return new Promise((res, rej) => {
-            
+
             if (!driveHelper.isGooglePlayServicesAvailable) {
                 rej("Google Play services is required for this feature, but not available on this device");
                 return;
@@ -32,7 +33,7 @@ export class GoogleDriveHelper implements IDriveManager {
             const signInAccount = com.google.android.gms.auth.api.signin.GoogleSignIn.getLastSignedInAccount(androidContext.context);
 
             if (signInAccount != null) {
-                res( driveHelper.initializeDriveClient(signInAccount, space, worker) );
+                res( driveHelper.initializeDriveClient(signInAccount, config) );
                 return;
             }
 
@@ -45,7 +46,7 @@ export class GoogleDriveHelper implements IDriveManager {
                         // @ts-ignore
                         const accountTask = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(eventData.intent);
                         if (accountTask.isSuccessful()) {
-                            res( driveHelper.initializeDriveClient(accountTask.getResult(), space, worker) );
+                            res( driveHelper.initializeDriveClient(accountTask.getResult(), config) );
                         }
                     }
                     return;
@@ -53,7 +54,7 @@ export class GoogleDriveHelper implements IDriveManager {
                 rej(`Google Drive access request was rejected. resultCode:${eventData.resultCode}`);
             };
 
-            const googleSignInClient = driveHelper.authOnGoogleDriveAccount(space);
+            const googleSignInClient = driveHelper.authOnGoogleDriveAccount(config.space);
             androidContext.foregroundActivity.startActivityForResult(googleSignInClient.getSignInIntent(), REQUEST_CODE_SIGN_IN);
             androidContext.on(AndroidApplication.activityResultEvent, onActivityResultEvent);
 
@@ -73,14 +74,13 @@ export class GoogleDriveHelper implements IDriveManager {
 
             NativeObjectPool.add("parent", driveHelper.getRoot(fileInfo.parentId || driveSpace));
 
-            function createFileHelperFn(fileInfo:any, googleDriveService:any, parent:any): string {
+            function createFileHelperFn(fileInfo: any, googleDriveService: any, parent: any): string {
                 // @ts-ignore
                 const metadata = new com.google.api.services.drive.model.File();
                 metadata.setParents(parent)
                         .setName(fileInfo.name)
                         .setDescription(fileInfo.description)
                         .setMimeType(fileInfo.mimeType);
-                        //.setSpaces(spaces)
 
                 let contentStream = null;
                 let fileResult = null;
@@ -92,7 +92,6 @@ export class GoogleDriveHelper implements IDriveManager {
                     fileResult = googleDriveService.files().create(metadata).execute();
                 }
 
-
                 if (!fileResult) {
                     throw "File couldn't be created, Null result when requesting file creation.";
                 }
@@ -102,7 +101,7 @@ export class GoogleDriveHelper implements IDriveManager {
 
             executeThread({
                 func: createFileHelperFn,
-                args:{
+                args: {
                     fileInfo,
                     googleDriveService: "-",
                     parent: "+"
@@ -119,7 +118,7 @@ export class GoogleDriveHelper implements IDriveManager {
      */
     readFile(driveFileId: string): Promise<string> {
         return new Promise((res, rej) => {
-            function readFileHelperFn(driveFileId: string, googleDriveService:any): string {
+            function readFileHelperFn(driveFileId: string, googleDriveService: any): string {
                 const fileResult = googleDriveService.files().get(driveFileId).executeMediaAsInputStream();
                 const  reader = new java.io.BufferedReader( new java.io.InputStreamReader(fileResult));
                 const builder = new java.lang.StringBuilder();
@@ -133,7 +132,7 @@ export class GoogleDriveHelper implements IDriveManager {
 
             executeThread({
                 func: readFileHelperFn,
-                args:{
+                args: {
                     driveFileId,
                     googleDriveService: "-"
                 }
@@ -149,14 +148,14 @@ export class GoogleDriveHelper implements IDriveManager {
      */
     deleteFile(driveFileId: string): Promise<boolean> {
        return new Promise((res, rej) => {
-            function deleteFileHelperFn(driveFileId: string, googleDriveService:any): boolean {
+            function deleteFileHelperFn(driveFileId: string, googleDriveService: any): boolean {
                 googleDriveService.files().delete(driveFileId).execute();
                 return true;
             }
 
             executeThread({
                 func: deleteFileHelperFn,
-                args:{
+                args: {
                     driveFileId,
                     googleDriveService: "-"
                 }
@@ -172,7 +171,7 @@ export class GoogleDriveHelper implements IDriveManager {
      */
     downloadFile(driveFileId: string): Promise<File> {
         return new Promise((res, rej) => {
-            function downloadFileHelperFn(driveFileId: string, googleDriveService:any, path: string) {
+            function downloadFileHelperFn(driveFileId: string, googleDriveService: any, path: string) {
                 const outputStream = new java.io.FileOutputStream(path);
                 googleDriveService.files().get(driveFileId).executeMediaAndDownloadTo(outputStream);
 
@@ -180,7 +179,7 @@ export class GoogleDriveHelper implements IDriveManager {
             }
             executeThread({
                 func: downloadFileHelperFn,
-                args:{
+                args: {
                     driveFileId,
                     googleDriveService: "-",
                     path: `${knownFolders.temp().path}/${driveFileId}`
@@ -202,7 +201,7 @@ export class GoogleDriveHelper implements IDriveManager {
         return new Promise((res, rej) => {
 
             NativeObjectPool.add("spaces", driveHelper.getRoot(fileInfo.parentId || driveSpace));
-            function uploadFileHelperFn(fileInfo: any, googleDriveService:any, spaces: any): string {
+            function uploadFileHelperFn(fileInfo: any, googleDriveService: any, spaces: any): string {
                 // @ts-ignore
                 const metadata = new com.google.api.services.drive.model.File();
                 metadata.setParents(spaces)
@@ -228,7 +227,7 @@ export class GoogleDriveHelper implements IDriveManager {
 
             executeThread({
                 func: uploadFileHelperFn,
-                args:{
+                args: {
                     fileInfo,
                     googleDriveService: "-",
                     spaces: '+'
@@ -248,7 +247,7 @@ export class GoogleDriveHelper implements IDriveManager {
         return new Promise((res, rej) => {
 
             NativeObjectPool.add("spaces", driveHelper.getRoot(driveSpace));
-            function listFilesHelperFn(parentId: any, googleDriveService:any, spaces: any): Array<FileInfo> {
+            function listFilesHelperFn(parentId: any, googleDriveService: any, spaces: any): Array<FileInfo> {
                 // @ts-ignore
                 const query = googleDriveService.files().list()
                     .setQ(`'${parentId || 'root'}' in parents`)
@@ -295,7 +294,7 @@ export class GoogleDriveHelper implements IDriveManager {
     searchFiles(fileInfo: FileInfo): Promise<Array<FileInfo>> {
         return new Promise((res, rej) => {
             NativeObjectPool.add("spaces", driveHelper.getRoot(driveSpace));
-            function searchFilesHelperFn(fileInfo: any, googleDriveService:any, spaces: any): Array<FileInfo> {
+            function searchFilesHelperFn(fileInfo: any, googleDriveService: any, spaces: any): Array<FileInfo> {
                 let queryString = `'${fileInfo.parentId || 'root'}' in parents`;
                 for (let key in fileInfo) {
                     if (fileInfo[key] && ["parentId", "content", "description"].indexOf(key) === -1) {
@@ -346,7 +345,7 @@ export class GoogleDriveHelper implements IDriveManager {
     createFolder(fileInfo: FileInfo): Promise<string> {
         return new Promise((res, rej) => {
             NativeObjectPool.add("roots", driveHelper.getRoot(fileInfo.parentId || driveSpace));
-            function searchFilesHelperFn(fileInfo: any, googleDriveService:any, roots: any): string {
+            function searchFilesHelperFn(fileInfo: any, googleDriveService: any, roots: any): string {
                 // @ts-ignore
                 const metadata = new com.google.api.services.drive.model.File();
                 metadata.setParents(roots)
@@ -366,7 +365,7 @@ export class GoogleDriveHelper implements IDriveManager {
 
             executeThread({
                 func: searchFilesHelperFn,
-                args:{
+                args: {
                     fileInfo,
                     googleDriveService: "-",
                     roots: "+"
@@ -386,7 +385,7 @@ export class GoogleDriveHelper implements IDriveManager {
     findFile(name: string, mimeType?: string): Promise<Array<FileInfo>> {
         return new Promise((res, rej) => {
             NativeObjectPool.add("spaces", driveHelper.getRoot(driveSpace));
-            function findFileHelperFn(name: any, mimeType: any, googleDriveService:any, spaces: any): Array<FileInfo> {
+            function findFileHelperFn(name: any, mimeType: any, googleDriveService: any, spaces: any): Array<FileInfo> {
                 let queryString = `name = '${name}' ${ ( mimeType ? "and mimeType ='${mimeType}'" : '' ) }`;
 
                 const query = googleDriveService.files().list()
@@ -413,7 +412,7 @@ export class GoogleDriveHelper implements IDriveManager {
             };
             executeThread({
                 func: findFileHelperFn,
-                args:{
+                args: {
                     name,
                     mimeType: (mimeType || null),
                     googleDriveService: "-",
@@ -433,7 +432,7 @@ export class GoogleDriveHelper implements IDriveManager {
     findFolder(name: string): Promise<Array<FileInfo>> {
         return new Promise((res, rej) => {
             NativeObjectPool.add("spaces", driveHelper.getRoot(driveSpace));
-            function findFolderHelperFn(name: any, googleDriveService:any, spaces:any): Array<FileInfo> {
+            function findFolderHelperFn(name: any, googleDriveService: any, spaces: any): Array<FileInfo> {
                 let queryString = `name = '${name}' and mimeType ='application/vnd.google-apps.folder'`;
                 const query = googleDriveService.files().list()
                     .setQ(queryString)
@@ -471,7 +470,7 @@ export class GoogleDriveHelper implements IDriveManager {
      * Disconnect the google drive account
      * @returns {Promise<boolean>}
      */
-    disconnectAccount(): Promise<boolean> {
+    signOut(): Promise<boolean> {
         return new Promise((res, rej) => {
             try {
                 NativeObjectPool.remove("googleDriveService");
@@ -521,16 +520,16 @@ driveHelper.authOnGoogleDriveAccount = function(space: SPACES): com.google.andro
  * Initialize a drive client
  *
  * @param {com.google.android.gms.auth.api.signin.GoogleSignInAccount} signInAccount
- * @param {SPACES} space
+ * @param {Config} config
  *
  * @returns {GoogleDriveHelper} Google drive helper
  */
 // @ts-ignore
-driveHelper.initializeDriveClient = function (signInAccount: com.google.android.gms.auth.api.signin.GoogleSignInAccount, space: SPACES, worker: Worker) {
+driveHelper.initializeDriveClient = function (signInAccount: com.google.android.gms.auth.api.signin.GoogleSignInAccount, config: Config) {
     // @ts-ignore
     const credential = com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
     // @ts-ignore
-    .usingOAuth2(androidContext.context, java.util.Collections.singleton(driveHelper.getScope(space)));
+    .usingOAuth2(androidContext.context, java.util.Collections.singleton(driveHelper.getScope(config.space)));
         credential.setSelectedAccount(signInAccount.getAccount());
     // @ts-ignore
     const googleDriveService = new com.google.api.services.drive.Drive.Builder(
@@ -544,8 +543,8 @@ driveHelper.initializeDriveClient = function (signInAccount: com.google.android.
     NativeObjectPool.remove("googleDriveService");
     NativeObjectPool.add("googleDriveService", googleDriveService);
 
-    WorkerThread = worker;
-    driveSpace = space;
+    WorkerThread = config.worker;
+    driveSpace = config.space;
 
     return new GoogleDriveHelper();
 };

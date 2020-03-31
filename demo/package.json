@@ -1,6 +1,6 @@
 {
   "nativescript": {
-    "id": "org.nativescript.demo",
+    "id": "org.nativescript.ngoogledrivetest",
     "tns-android": {
       "version": "6.1.2"
     },

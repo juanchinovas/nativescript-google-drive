@@ -8,6 +8,7 @@
 
     <StackLayout>
         <!-- Add your page content here -->
+        <Button text="Sign me In" tap="{{onInit}}"></Button>
         <Button text="Create file" tap="{{onCreateFile}}"></Button>
         <Button text="Read file" tap="{{onReadFile}}"></Button>
         <Button text="Download file" tap="{{onDownloadFile}}"></Button>
