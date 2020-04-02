@@ -2,12 +2,13 @@ import { File } from "tns-core-modules/file-system";
 
 export interface IDriveManager {
     createFile(fileInfo: FileInfo): Promise<string>;
-    readFile(driveFileId: string): Promise<string>;
+    updateFile(fileInfo: FileInfo): Promise<boolean>;
+    readFileContent(driveFileId: string): Promise<any>;
     deleteFile(driveFileId: string): Promise<boolean>;
     downloadFile(driveFileId: string): Promise<File>;
     uploadFile(fileInfo: FileInfo): Promise<string>;
-    listFiles(parentId?: string): Promise<Array<FileInfo>>;
-    findFile(name: string, mimeType?: string): Promise<Array<FileInfo>>;
+    listFilesByParent(parentId?: string): Promise<Array<FileInfo>>;
+    searchFiles(fileInfo: FileInfo): Promise<Array<FileInfo>>;
     createFolder(fileInfo: FileInfo): Promise<string>;
     findFolder(name: string): Promise<Array<FileInfo>>;
 }
@@ -17,7 +18,7 @@ export interface IDriveManager {
  */
 export interface FileInfo {
     name: string;
-    content: string | File;
+    content?: string | File;
     mimeType: string;
     id?: string;
     description?: any;
@@ -40,7 +41,8 @@ export enum SPACES {
  * Interface to initialize the plugin
  */
 export interface Config {
-    space: SPACES,
-    worker: Worker,
-    clientId?: string
+    space: SPACES;
+    extraDriveScopes?: Array<string>;
+    worker: Worker;
+    clientId?: string;
 }

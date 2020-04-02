@@ -17,16 +17,16 @@ context.onmessage = (msg: MessageEvent) => {
             onCompleted(valueReturned);
         }
     }
-}
+};
 
 /**
  * Get all the function parameter's values and return it as array of object
- * @param {any} args 
+ * @param {any} args
  */
 function getFuncArgsAsArray(args: any): Array<any> {
     const argsArray = [];
     if (args) {
-        for(const key in args) {
+        for (const key in args) {
             if (args[key] === '+' || args[key] === '-') {
                 argsArray.push(getNativeReference(key));
                 if (args[key] === '+') {
@@ -43,7 +43,7 @@ function getFuncArgsAsArray(args: any): Array<any> {
 
 /**
  * Look at args object shared with the native pool
- * @param {string} key 
+ * @param {string} key
  */
 function getNativeReference(key: string): any {
     const ref = NativeObjectPool.get(key);

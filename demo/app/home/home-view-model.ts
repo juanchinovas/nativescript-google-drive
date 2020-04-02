@@ -1,10 +1,11 @@
 import { Observable } from "tns-core-modules/data/observable";
 import * as applicationSetting from "tns-core-modules/application-settings";
 import { isIOS } from "tns-core-modules/platform";
-import { GoogleDriveHelper, SPACES, FileInfo } from "nativescript-google-drive";
+import { GoogleDriveHelper, SPACES, FileInfo, Config } from "nativescript-google-drive";
 import { ActivityIndicator } from "tns-core-modules/ui/activity-indicator";
 import { confirm } from "tns-core-modules/ui/dialogs";
 // import * as  MyWorker from "nativescript-worker-loader!../test-worker";
+// @ts-ignore
 import * as  MyWorker from "nativescript-worker-loader!nativescript-google-drive/thread-worker";
 
 export class HomeViewModel extends Observable {
@@ -13,7 +14,7 @@ export class HomeViewModel extends Observable {
 
     constructor() {
         super();
-        // this.onInit();
+        this.onInit();
     }
 
     onBusyChanged(data: any) {
@@ -22,18 +23,24 @@ export class HomeViewModel extends Observable {
     }
 
     onInit() {
-        const googleClientID = "680729366979-1bf7aoceaf52ijj7k8fmcbavbstvbbcm.apps.googleusercontent.com";
-        GoogleDriveHelper.singInOnGoogleDrive({
+        // Android only
+        const config: Config = {
             space: SPACES.APP_DATA_FOLDER,
-            worker: MyWorker,
-            clientId: googleClientID
-        })
+            worker: MyWorker
+        };
+        // iOS need the extra clientID
+        if (isIOS) {
+            const googleClientID = "680729366979-1bf7aoceaf52ijj7k8fmcbavbstvbbcm.apps.googleusercontent.com";
+            config.clientId = googleClientID;
+        }
+
+        GoogleDriveHelper.singInOnGoogleDrive(config)
         .then((helper: GoogleDriveHelper) => {
             this.driveHelper = helper;
             try {
-                // this.onFindFolder();
+                this.onFindFolder();
                 this.onFindFileInFolder();
-                // this.onListFileFromParent();
+                this.onListFileFromParent();
             } catch (e) {
                 console.log(e);
             }
@@ -95,7 +102,7 @@ export class HomeViewModel extends Observable {
         const fileId = applicationSetting.getString("FileId");
         console.log("#fileId", fileId);
         if (fileId) {
-            this.driveHelper.readFile(fileId)
+            this.driveHelper.readFileContent(fileId)
             .then(file => {
                 console.log(file);
                 this.loader.busy = false;
@@ -104,6 +111,8 @@ export class HomeViewModel extends Observable {
                 console.log(a);
                 this.loader.busy = false;
             });
+        } else {
+            this.loader.busy = false;
         }
     }
 
@@ -150,10 +159,45 @@ export class HomeViewModel extends Observable {
     onFindFile() {
         this.loader.busy = true;
         const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
-        this.driveHelper.findFile(name)
+        this.driveHelper.searchFiles({
+            name,
+            mimeType: null
+        })
         .then(file => {
             console.log(file);
-            applicationSetting.setString("FileId", file[0].id);
+            if (file.length) {
+                applicationSetting.setString("FileId", file[0].id);
+            }
+            this.loader.busy = false;
+        })
+        .catch((a) => {
+            console.log(a);
+            this.loader.busy = false;
+        });
+    }
+
+    onUpdateFile() {
+        this.loader.busy = true;
+        const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
+        const metadata: FileInfo = <FileInfo>{
+            name,
+            content: `
+            {
+                "name": "J. novas",
+                "lastName": "Novas",
+                "nameOfFile": ${name},
+                "date": '${new Date()}',
+            }`,
+            description: "A test create a json file " + new Date(),
+            mimeType: "application/json",
+            parentId: applicationSetting.getString("FolderId", null),
+            id: applicationSetting.getString("FileId", null)
+        };
+
+        this.driveHelper.updateFile(metadata)
+        .then((done: boolean) => {
+            console.log("#updateFile()", done);
+
             this.loader.busy = false;
         })
         .catch((a) => {
@@ -220,7 +264,7 @@ export class HomeViewModel extends Observable {
     onListFileFromParent() {
         // this.loader.busy = true;
         const parentFolderId = applicationSetting.getString("FolderId", null);
-        this.driveHelper.listFiles(parentFolderId)
+        this.driveHelper.findFilesByParentId(parentFolderId)
         .then(filesInfo => {
             console.log(filesInfo);
             // applicationSetting.setString("FolderId", folderId);
