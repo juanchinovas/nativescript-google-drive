@@ -1,7 +1,7 @@
 import { Observable } from "tns-core-modules/data/observable";
 import * as applicationSetting from "tns-core-modules/application-settings";
 import { isIOS } from "tns-core-modules/platform";
-import { GoogleDriveHelper, SPACES, FileInfo, Config } from "nativescript-google-drive";
+import { GoogleDriveHelper, SPACES, FileInfoContent, FileInfo, Config } from "nativescript-google-drive";
 import { ActivityIndicator } from "tns-core-modules/ui/activity-indicator";
 import { confirm } from "tns-core-modules/ui/dialogs";
 // import * as  MyWorker from "nativescript-worker-loader!../test-worker";
@@ -12,8 +12,10 @@ export class HomeViewModel extends Observable {
     driveHelper: GoogleDriveHelper;
     loader: ActivityIndicator;
 
+
     constructor() {
         super();
+        this.set("files", []);
         this.onInit();
     }
 
@@ -38,8 +40,8 @@ export class HomeViewModel extends Observable {
         .then((helper: GoogleDriveHelper) => {
             this.driveHelper = helper;
             try {
-                this.onFindFolder();
-                this.onFindFileInFolder();
+                //this.onFindFolder();
+                //this.onFindFileInFolder();
                 this.onListFileFromParent();
             } catch (e) {
                 console.log(e);
@@ -71,7 +73,7 @@ export class HomeViewModel extends Observable {
     onCreateFile() {
         this.loader.busy = true;
         const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
-        const metadata: FileInfo = <FileInfo>{
+        const metadata: FileInfoContent = <FileInfoContent>{
             name,
             content: `
             {
@@ -160,8 +162,7 @@ export class HomeViewModel extends Observable {
         this.loader.busy = true;
         const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
         this.driveHelper.searchFiles({
-            name,
-            mimeType: null
+            name
         })
         .then(file => {
             console.log(file);
@@ -179,7 +180,7 @@ export class HomeViewModel extends Observable {
     onUpdateFile() {
         this.loader.busy = true;
         const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
-        const metadata: FileInfo = <FileInfo>{
+        const metadata: FileInfoContent = <FileInfoContent>{
             name,
             content: `
             {
@@ -209,7 +210,6 @@ export class HomeViewModel extends Observable {
     onCreateFolder() {
         const folderMetadata: FileInfo = <FileInfo>{
             name: "config-folder",
-            content: null,
             description: "A test created folder"
         };
         this.loader.busy = true;
@@ -244,7 +244,6 @@ export class HomeViewModel extends Observable {
         const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
         const folderMetadata: FileInfo = <FileInfo>{
             name,
-            content: null,
             description: "A test create a json file",
             mimeType: "application/json",
             parentId: applicationSetting.getString("FolderId", null)
@@ -264,9 +263,10 @@ export class HomeViewModel extends Observable {
     onListFileFromParent() {
         // this.loader.busy = true;
         const parentFolderId = applicationSetting.getString("FolderId", null);
-        this.driveHelper.findFilesByParentId(parentFolderId)
+        this.driveHelper.listFilesByParent(parentFolderId)
         .then(filesInfo => {
-            console.log(filesInfo);
+            this.set("files", filesInfo);
+            //console.log(filesInfo);
             // applicationSetting.setString("FolderId", folderId);
             // this.loader.busy = false;
         })

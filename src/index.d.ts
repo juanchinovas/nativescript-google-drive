@@ -1,5 +1,5 @@
 import { File } from "tns-core-modules/file-system";
-import { IDriveManager, FileInfo, SPACES, Config } from "./google-drive.common";
+import { IDriveManager, FileInfo, SPACES, Config, FileInfoContent } from "./google-drive.common";
 export declare class GoogleDriveHelper implements IDriveManager {
     /**
      * This method start Google SignIn flow and ask for Gogole Drive permissions to the user
@@ -14,27 +14,27 @@ export declare class GoogleDriveHelper implements IDriveManager {
     /**
      * Create a file with the specific metadata in Google Drive
      *
-     * @param {FileInfo} fileInfo file metadata
+     * @param {FileInfoContent} fileInfo file metadata
      *
      * @returns {Promise<string>} created file id
      */
-    createFile(fileInfo: FileInfo): Promise<string>;
+    createFile(fileInfo: FileInfoContent): Promise<string>;
     /**
      * Update a file content in Google Drive.
      * If you want to update the metadata, you have to required permission to metadata scope to the user.
      *
-     * @param {FileInfo} fileInfo file metadata
+     * @param {FileInfoContent} fileInfo file metadata
      *
      * @returns {Promise<string>} created file id
      */
-    updateFile(fileInfo: FileInfo): Promise<boolean>;
+    updateFile(fileInfo: FileInfoContent): Promise<boolean>;
     /**
      * Read a text plain file
      * @param {string} driveFileId
      *
      * @returns {Promise<string>} text contained in the file
      */
-    readFileContent(driveFileId: string): Promise<any>;
+    readFileContent(driveFileId: string): Promise<string>;
     /**
      * Delete a file
      * @param {string} driveFileId
@@ -63,7 +63,7 @@ export declare class GoogleDriveHelper implements IDriveManager {
      *
      * @returns {Promise<Array<FileInfo>>} file list
      */
-    findFilesByParentId(parentId?: string): Promise<Array<FileInfo>>;
+    listFilesByParent(parentId?: string): Promise<Array<FileInfo>>;
     /**
      * Search files in Google Drive with the given metadata.
      *
@@ -94,4 +94,4 @@ export declare class GoogleDriveHelper implements IDriveManager {
     signOut(): Promise<boolean>;
 }
 
-export { FileInfo, SPACES, Config } from './google-drive.common';
+export { FileInfoContent, FileInfo, SPACES, Config } from './google-drive.common';

@@ -6,18 +6,28 @@
         <Label class="action-bar-title" text="Home"></Label>
     </ActionBar>
 
-    <StackLayout>
-        <!-- Add your page content here -->
-        <Button text="Sign me In" tap="{{onInit}}"></Button>
-        <Button text="Create file" tap="{{onCreateFile}}"></Button>
-        <Button text="Read file" tap="{{onReadFile}}"></Button>
-        <Button text="Update file" tap="{{onUpdateFile}}"></Button>
-        <Button text="Download file" tap="{{onDownloadFile}}"></Button>
-        <Button text="Delete file" tap="{{onDeleteFile}}"></Button>
-        <Button text="Find file" tap="{{onFindFile}}"></Button>
-        <Button text="Create folder" tap="{{onCreateFolder}}"></Button>
-        <Button text="Disconnect account" tap="{{onPressToDisconnect}}"></Button>
-        <ActivityIndicator loaded="{{ onBusyChanged }}"></ActivityIndicator>
-
-    </StackLayout>
+    <GridLayout rows="250, *">
+        <StackLayout row="0">
+                <!-- Add your page content here -->
+                <Button text="Sign me In" tap="{{onInit}}"></Button>
+                <Button text="Create file" tap="{{onCreateFile}}"></Button>
+                <Button text="Read file" tap="{{onReadFile}}"></Button>
+                <Button text="Update file" tap="{{onUpdateFile}}"></Button>
+                <Button text="Download file" tap="{{onDownloadFile}}"></Button>
+                <Button text="Delete file" tap="{{onDeleteFile}}"></Button>
+                <Button text="Find file" tap="{{onFindFile}}"></Button>
+                <Button text="Create folder" tap="{{onCreateFolder}}"></Button>
+                <Button text="Disconnect account" tap="{{onPressToDisconnect}}"></Button>
+                <ActivityIndicator loaded="{{ onBusyChanged }}"></ActivityIndicator>
+            </StackLayout>
+        <ListView row="1" items="{{ files }}" class="list-group">
+            <ListView.itemTemplate>
+                <GridLayout columns="36, *, 36" class="list-group-item">
+                    <Label text="{{ $value.mimeType == 'application/vnd.google-apps.folder' ? '&#xf15b;' :  '&#xf07b;'}}" rcol="0" class="far list-group-item-text"></Label>
+                    <Label text="{{ $value.name }}" col="1" class="list-group-item-text"></Label>
+                    <Button text="&#xf057;" col="2" class="far list-group-item-text"></Button>
+                </GridLayout>
+            </ListView.itemTemplate>
+        </ListView>
+    </GridLayout>
 </Page>
