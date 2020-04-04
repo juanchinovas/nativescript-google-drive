@@ -6,28 +6,46 @@
         <Label class="action-bar-title" text="Home"></Label>
     </ActionBar>
 
-    <GridLayout rows="250, *">
-        <StackLayout row="0">
-                <!-- Add your page content here -->
-                <Button text="Sign me In" tap="{{onInit}}"></Button>
-                <Button text="Create file" tap="{{onCreateFile}}"></Button>
-                <Button text="Read file" tap="{{onReadFile}}"></Button>
-                <Button text="Update file" tap="{{onUpdateFile}}"></Button>
-                <Button text="Download file" tap="{{onDownloadFile}}"></Button>
-                <Button text="Delete file" tap="{{onDeleteFile}}"></Button>
-                <Button text="Find file" tap="{{onFindFile}}"></Button>
-                <Button text="Create folder" tap="{{onCreateFolder}}"></Button>
-                <Button text="Disconnect account" tap="{{onPressToDisconnect}}"></Button>
-                <ActivityIndicator loaded="{{ onBusyChanged }}"></ActivityIndicator>
-            </StackLayout>
-        <ListView row="1" items="{{ files }}" class="list-group">
+    <GridLayout rows="auto, *">
+        <GridLayout rows="auto, 5, auto" columns="*,*" backgroundColor="#f0f0f0">
+            <!-- Add your page content here -->
+            <Button col="0" 
+                visibility="{{ !driveHelper ? 'visible' : 'collapsed' }}"
+                text="&#xf2f6; Sign me In" tap="{{onInit}}" class="fas"
+                isEnabled= "{{!isLoading}}"></Button>
+            <Button col="1" text="&#xf2f5; Disconnect account" 
+                tap="{{onPressToDisconnect}}" class="fas btn btn-primary btn-ruby"
+                isEnabled= "{{!isLoading}}"></Button>
+            
+            <StackLayout row="1" col="0" colSpan="2" class="hr-light"></StackLayout>
+
+            <Button row="2" col="0" text="&#xf477; file" 
+                tap="{{onCreateFileEvent}}" class="fas btn btn-primary btn-blue"
+                isEnabled= "{{!isLoading}}"></Button>
+            <Button row="2" col="1" text="&#xf65e; folder" 
+                tap="{{onCreateFolderEvent}}" class="fas btn btn-primary btn-brown"
+                isEnabled= "{{!isLoading}}"></Button>
+        </GridLayout>
+        <ListView row="1" items="{{ files }}" class="list-group" itemTap="{{ onAccionShow }}">
             <ListView.itemTemplate>
-                <GridLayout columns="36, *, 36" class="list-group-item">
-                    <Label text="{{ $value.mimeType == 'application/vnd.google-apps.folder' ? '&#xf15b;' :  '&#xf07b;'}}" rcol="0" class="far list-group-item-text"></Label>
-                    <Label text="{{ $value.name }}" col="1" class="list-group-item-text"></Label>
-                    <Button text="&#xf057;" col="2" class="far list-group-item-text"></Button>
+                <GridLayout rows="auto,auto,auto" columns="50, *, auto" class="list-group-item p-x-8">
+                    <Label 
+                        text="{{ $value.mimeType == 'application/vnd.google-apps.folder' ? '&#xf07b;' :  '&#xf15c;'}}" 
+                        col="0" 
+                        rowSpan="3" class="fas icon  p-r-8"></Label>
+                    <Label text="{{ $value.name }}" col="1" class="h3 font-weight-bold"></Label>
+                    <Label text="{{ $value.mimeType }}" row="1" col="1" class="list-group-item-text body"></Label>
+                    <Label text="{{ $value.description }}" row="2" col="1" class="list-group-item-text body2"></Label>
+                    <Label text="{{ $value.createdTime }}" row="1" col="2" class="footnote"></Label>
                 </GridLayout>
             </ListView.itemTemplate>
         </ListView>
+        <ActivityIndicator
+            color="#7845ad"
+            row="1" 
+            rowSpan="2"
+            busy="{{ isLoading }}"
+            width="96" 
+            height="96"></ActivityIndicator>
     </GridLayout>
 </Page>

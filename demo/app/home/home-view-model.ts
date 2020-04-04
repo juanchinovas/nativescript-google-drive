@@ -2,26 +2,22 @@ import { Observable } from "tns-core-modules/data/observable";
 import * as applicationSetting from "tns-core-modules/application-settings";
 import { isIOS } from "tns-core-modules/platform";
 import { GoogleDriveHelper, SPACES, FileInfoContent, FileInfo, Config } from "nativescript-google-drive";
-import { ActivityIndicator } from "tns-core-modules/ui/activity-indicator";
-import { confirm } from "tns-core-modules/ui/dialogs";
+import { confirm, action, alert, prompt, PromptResult, inputType, capitalizationType, PromptOptions } from "tns-core-modules/ui/dialogs";
+import { ItemEventData } from "tns-core-modules/ui/list-view";
 // import * as  MyWorker from "nativescript-worker-loader!../test-worker";
 // @ts-ignore
 import * as  MyWorker from "nativescript-worker-loader!nativescript-google-drive/thread-worker";
 
 export class HomeViewModel extends Observable {
     driveHelper: GoogleDriveHelper;
-    loader: ActivityIndicator;
-
 
     constructor() {
         super();
         this.set("files", []);
-        this.onInit();
-    }
-
-    onBusyChanged(data: any) {
-        this.loader = <ActivityIndicator>data.object;
-        this.loader.busy = false;
+        this.set("isLoading", true);
+        setTimeout(() => {
+            this.onInit();
+        }, 3000);
     }
 
     onInit() {
@@ -39,17 +35,17 @@ export class HomeViewModel extends Observable {
         GoogleDriveHelper.singInOnGoogleDrive(config)
         .then((helper: GoogleDriveHelper) => {
             this.driveHelper = helper;
-            try {
-                //this.onFindFolder();
-                //this.onFindFileInFolder();
-                this.onListFileFromParent();
-            } catch (e) {
-                console.log(e);
-            }
+            this.onListFileFromParent();
         })
         .catch(console.log);
     }
 
+    onAccionShow(event: ItemEventData) {
+        const files = <Array<FileInfo>>this.get("files");
+        const index = event.index;
+        const fileInfo: FileInfo = files[index];
+        this.__showOption(fileInfo);
+    }
 
     onPressToDisconnect() {
         let options = {
@@ -70,56 +66,59 @@ export class HomeViewModel extends Observable {
         });
     }
 
-    onCreateFile() {
-        this.loader.busy = true;
-        const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
+    onCreateFileEvent() {
+        this.__actionOption("Create file", null);
+    }
+
+    onCreateFile(fileInfo: FileInfo, name: string) {
+        this.set("isLoading", true);
+        const _name = isIOS && (name || "ios-back-up-test.json") || (name || "android-back-up-test.json");
         const metadata: FileInfoContent = <FileInfoContent>{
-            name,
+            name: _name,
             content: `
             {
-                "name": "J. novas",
-                "lastName": "Novas",
+                "name": "A file Name",
+                "lastName": "A file lastname?"
             }
             `,
             description: "A test create a json file",
             mimeType: "application/json",
-            parentId: applicationSetting.getString("FolderId", null)
+            parentId: fileInfo && fileInfo.parentId || null
         };
 
         this.driveHelper.createFile(metadata)
         .then(id => {
             console.log("#file-metadata(id)", id);
-            applicationSetting.setString("FileId", id);
-
-            this.loader.busy = false;
+            alert(id).then(d => {
+                if (id) {
+                    this.onListFileFromParent();
+                } else {
+                    this.set("isLoading", false);
+                }
+            });
         })
         .catch((a) => {
             console.log(a);
-            this.loader.busy = false;
+            this.set("isLoading", false);
         });
     }
 
-    onReadFile() {
-        this.loader.busy = true;
-        const fileId = applicationSetting.getString("FileId");
-        console.log("#fileId", fileId);
-        if (fileId) {
-            this.driveHelper.readFileContent(fileId)
-            .then(file => {
-                console.log(file);
-                this.loader.busy = false;
-            })
-            .catch((a) => {
-                console.log(a);
-                this.loader.busy = false;
-            });
-        } else {
-            this.loader.busy = false;
-        }
+    onReadFile(fileInfo: FileInfo) {
+        this.set("isLoading", true);
+        console.log("#fileId", fileInfo.id);
+        this.driveHelper.readFileContent(fileInfo.id)
+        .then(file => {
+            alert(file);
+            this.set("isLoading", false);
+        })
+        .catch((a) => {
+            console.log(a);
+            this.set("isLoading", false);
+        });
     }
 
     onDownloadFile() {
-        this.loader.busy = true;
+        this.set("isLoading", true);
         const fileId = applicationSetting.getString("FileId");
         console.log("#fileId", fileId);
         if (fileId) {
@@ -132,34 +131,47 @@ export class HomeViewModel extends Observable {
                 }).catch((err) => {
                     console.log(err.stack);
                 });
-                this.loader.busy = false;
+                this.set("isLoading", false);
             })
             .catch((a) => {
                 console.log(a);
-                this.loader.busy = false;
+                this.set("isLoading", false);
             });
         }
     }
 
-    onDeleteFile() {
-        this.loader.busy = true;
-        const fileId = applicationSetting.getString("FileId");
-        console.log("#fileId", fileId);
-        if (fileId) {
-            this.driveHelper.deleteFile(fileId)
-            .then(file => {
-                console.log(file);
-                this.loader.busy = false;
-            })
-            .catch((a) => {
-                console.log(a);
-                this.loader.busy = false;
-            });
-        }
+    onDeleteFile(fileInfo: FileInfo) {
+        let options = {
+            title: "Confirm",
+            message: `Are you sure you want to delete ${fileInfo.name}?`,
+            okButtonText: "Yes",
+            cancelButtonText: "No"
+        };
+
+        confirm(options).then((result: boolean) => {
+            if (result) {
+                this.set("isLoading", true);
+                console.log("#fileId", fileInfo.id);
+                this.driveHelper.deleteFile(fileInfo.id)
+                .then(done => {
+                    alert(done).then(d => {
+                        if (done) {
+                            this.onListFileFromParent();
+                        } else {
+                            this.set("isLoading", false);
+                        }
+                    });
+                })
+                .catch((a) => {
+                    console.log(a);
+                    this.set("isLoading", false);
+                });
+            }
+        });
     }
 
     onFindFile() {
-        this.loader.busy = true;
+        this.set("isLoading", true);
         const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
         this.driveHelper.searchFiles({
             name
@@ -169,16 +181,16 @@ export class HomeViewModel extends Observable {
             if (file.length) {
                 applicationSetting.setString("FileId", file[0].id);
             }
-            this.loader.busy = false;
+            this.set("isLoading", false);
         })
         .catch((a) => {
             console.log(a);
-            this.loader.busy = false;
+            this.set("isLoading", false);
         });
     }
 
-    onUpdateFile() {
-        this.loader.busy = true;
+    onUpdateFile(fileInfo: FileInfo) {
+        this.set("isLoading", true);
         const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
         const metadata: FileInfoContent = <FileInfoContent>{
             name,
@@ -187,92 +199,174 @@ export class HomeViewModel extends Observable {
                 "name": "J. novas",
                 "lastName": "Novas",
                 "nameOfFile": ${name},
+                "parentId: '${fileInfo.id}'
                 "date": '${new Date()}',
             }`,
             description: "A test create a json file " + new Date(),
             mimeType: "application/json",
-            parentId: applicationSetting.getString("FolderId", null),
-            id: applicationSetting.getString("FileId", null)
+            parentId: fileInfo && fileInfo.parentId || null,
+            id: fileInfo && fileInfo.id || null
         };
 
         this.driveHelper.updateFile(metadata)
         .then((done: boolean) => {
             console.log("#updateFile()", done);
-
-            this.loader.busy = false;
+            alert(done);
+            this.set("isLoading", false);
         })
         .catch((a) => {
             console.log(a);
-            this.loader.busy = false;
+            this.set("isLoading", false);
         });
     }
 
-    onCreateFolder() {
+    onCreateFolderEvent() {
+        this.__actionOption("Create folder", null);
+    }
+
+    onCreateFolder(fileInfo: FileInfo, name: string) {
+        this.set("isLoading", true);
         const folderMetadata: FileInfo = <FileInfo>{
-            name: "config-folder",
-            description: "A test created folder"
+            name: name || "config-folder",
+            description: "A created folder",
+            parentId: fileInfo && fileInfo.parentId || null
         };
-        this.loader.busy = true;
+        console.log(name);
         this.driveHelper.createFolder(folderMetadata)
         .then(folderId => {
             console.log("folderId.: ", folderId);
-            applicationSetting.setString("FolderId", folderId);
-            this.loader.busy = false;
+            alert(folderId).then(d => {
+                if (folderId) {
+                    this.onListFileFromParent();
+                } else {
+                    this.set("isLoading", false);
+                }
+            });
         })
         .catch((a) => {
             console.log(a);
-            this.loader.busy = false;
+            this.set("isLoading", false);
         });
     }
 
     onFindFolder() {
-        // this.loader.busy = true;
+        this.set("isLoading", true);
         this.driveHelper.findFolder("config-folder")
         .then(foldersInfo => {
             console.log(foldersInfo);
             // applicationSetting.setString("FolderId", folderId);
-            // this.loader.busy = false;
+            this.set("isLoading", false);
         })
         .catch((a) => {
             console.log(a);
-            // this.loader.busy = false;
+            this.set("isLoading", false);
         });
     }
 
-    onFindFileInFolder() {
-        // this.loader.busy = true;
-        const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
+    onFindFileInFolder(fileInfo: FileInfo) {
+        this.set("isLoading", true);
         const folderMetadata: FileInfo = <FileInfo>{
-            name,
-            description: "A test create a json file",
-            mimeType: "application/json",
-            parentId: applicationSetting.getString("FolderId", null)
+            parentId: fileInfo && fileInfo.id || null
         };
         this.driveHelper.searchFiles(folderMetadata)
         .then(filesInfo => {
-            console.log(filesInfo);
-            // applicationSetting.setString("FolderId", folderId);
-            // this.loader.busy = false;
+            if (filesInfo.length) {
+                let options = {
+                    title: "Files found",
+                    actions: filesInfo.map(a => a.name)
+                };
+        
+                action(options).then((op) => {
+                    this.__showOption(filesInfo.find(f => f.name === op));
+                });
+            } else {
+                alert("No files found");
+            }
+            this.set("isLoading", false);
         })
         .catch((a) => {
             console.log(a);
-            // this.loader.busy = false;
+            this.set("isLoading", false);
         });
     }
 
     onListFileFromParent() {
-        // this.loader.busy = true;
-        const parentFolderId = applicationSetting.getString("FolderId", null);
-        this.driveHelper.listFilesByParent(parentFolderId)
+        this.set("isLoading", true);
+        this.driveHelper.listFilesByParent()
         .then(filesInfo => {
             this.set("files", filesInfo);
-            //console.log(filesInfo);
-            // applicationSetting.setString("FolderId", folderId);
-            // this.loader.busy = false;
+            this.set("isLoading", false);
         })
         .catch((a) => {
             console.log(a);
-            // this.loader.busy = false;
+            this.set("isLoading", false);
         });
+    }
+
+    __showOption(fileInfo: FileInfo) {
+        const folderActions = ["Delete", "Create file", "Create folder", "List file"];
+        const fileActions = ["Read content", "Delete", "Update content"];
+        let actions = fileActions;
+
+        if (fileInfo.mimeType === "application/vnd.google-apps.folder") {
+            actions = folderActions;
+        }
+        let options = {
+            title: "Selection",
+            message: "Choose action",
+            cancelButtonText: "Cancel",
+            actions
+        };
+
+        action(options).then((result) => {
+            this.__actionOption(result, fileInfo);
+        });
+    }
+
+    __actionOption(result: string, fileInfo: FileInfo) {
+        if (result === "Delete") {
+            this.onDeleteFile(fileInfo);
+        }
+        if (result === "Create file") {
+            let options: PromptOptions = {
+                title: "Hey There",
+                message: "Enter your name",
+                okButtonText: "OK",
+                cancelButtonText: "Cancel",
+                cancelable: false,
+                inputType: inputType.text,
+                capitalizationType: capitalizationType.sentences
+            };
+            
+            prompt(options).then((result: PromptResult) => {
+                if (result.result)
+                    this.onCreateFile(fileInfo, result.text);
+            });
+        }
+        if (result === "List file") {
+            this.onFindFileInFolder(fileInfo);
+        }
+        if (result === "Read content") {
+            this.onReadFile(fileInfo);
+        }
+        if (result === "Update content") {
+            this.onUpdateFile(fileInfo);
+        }
+        if (result === "Create folder") {
+            let options: PromptOptions = {
+                title: "Hey There",
+                message: "Enter your name",
+                okButtonText: "OK",
+                cancelButtonText: "Cancel",
+                cancelable: false,
+                inputType: inputType.text,
+                capitalizationType: capitalizationType.sentences
+            };
+            
+            prompt(options).then((result: PromptResult) => {
+                if(result.result)
+                    this.onCreateFolder(fileInfo, result.text);
+            });
+        }
     }
 }

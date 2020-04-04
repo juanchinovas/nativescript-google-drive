@@ -35,7 +35,6 @@ export class GoogleDriveHelper implements IDriveManager {
             googleSignInService.shouldFetchBasicProfile = false;
             googleSignInService.scopes = NSArray.arrayWithArray(<any>config.extraDriveScopes);
             (googleSignInService as any).presentingViewController = ios.rootController;
-
             googleSignInService.clientID = config.clientId;
             config.clientId = null;
 
@@ -337,7 +336,7 @@ export class GoogleDriveHelper implements IDriveManager {
 
             function listFilesHelperFn(parentId: any, googleDriveService: any, spaces: any) {
                 const driveFileList: GTLRDriveQuery_FilesList =  GTLRDriveQuery_FilesList.query();
-                driveFileList.q = `'${parentId || spaces}' in parents`;
+                driveFileList.q = `'${parentId}' in parents`;
                 driveFileList.spaces = spaces;
                 driveFileList.fields = "files(id,name,size,createdTime,description,mimeType,parents)";
 
@@ -358,7 +357,6 @@ export class GoogleDriveHelper implements IDriveManager {
                             createdTime: new Date(files.objectAtIndex(i).createdTime.date)
                         });
                     }
-
                     /*This is on worker*/
                     // @ts-ignore
                     onCompleted(results);
@@ -368,7 +366,7 @@ export class GoogleDriveHelper implements IDriveManager {
             executeThread({
                 func: listFilesHelperFn,
                 args: {
-                    parentId: parentId,
+                    parentId: parentId || __config.space,
                     googleDriveService: "-",
                     spaces: __config.space
                 },
@@ -519,7 +517,6 @@ export class GoogleDriveHelper implements IDriveManager {
                             createdTime: new Date(files.objectAtIndex(i).createdTime.date)
                         });
                     }
-
                     /*This is on worker*/
                     // @ts-ignore
                     onCompleted(results);
@@ -603,6 +600,7 @@ class GIDSignInDelegateImpl extends NSObject implements GIDSignInDelegate {
             this.rejectPromise({ code: error.code, msg: error.localizedDescription });
             return;
         }
+
         const googleDriveService = GTLRDriveService.new();
         googleDriveService.authorizer = user.authentication.fetcherAuthorizer();
 
