@@ -1,0 +1,44 @@
+<ActionBar class="action-bar">
+    <Label class="action-bar-title" text="Home"></Label>
+</ActionBar>
+
+<GridLayout rows="auto, *">
+    <GridLayout rows="auto, 5, auto" columns="*,*" backgroundColor="#f0f0f0">
+        <Button col="0" 
+            text="&#xf2f6;  Sign In" (tap)="onInit()" class="fas btn btn-primary"
+            [isEnabled]= "isNotSignedInAndNotLoading()"></Button>
+        <Button col="1" text="&#xf2f5;  Sign out" 
+            (tap)="onPressToDisconnect" class="fas btn btn-primary btn-ruby"
+            [isEnabled]= "isSignedInAndNotLoading()"></Button>
+        
+        <StackLayout row="1" col="0" colSpan="2" class="hr-light"></StackLayout>
+
+        <Button row="2" col="0" text="&#xf477;  file" 
+            (tap)="onCreateFileEvent()" class="fas btn btn-primary btn-blue"
+            [isEnabled]= " isSignedInAndNotLoading() "></Button>
+        <Button row="2" col="1" text="&#xf65e;  folder" 
+            (tap)="onCreateFolderEvent()" class="fas btn btn-primary btn-brown"
+            [isEnabled]= " isSignedInAndNotLoading() "></Button>
+    </GridLayout>
+    <ListView row="1" [items]="files" class="list-group" (itemTap)="onAccionShow($event)">
+        <ng-template let-item="item">
+            <GridLayout rows="auto,auto,auto" columns="50, *, auto" class="list-group-item p-x-8">
+                <Label 
+                    [text]="item.mimeType == 'application/vnd.google-apps.folder' ? '&#xf07b;' :  '&#xf15c;'" 
+                    col="0" 
+                    rowSpan="3" class="fas icon  p-r-8"></Label>
+                <Label [text]="item.name" col="1" class="h3 font-weight-bold"></Label>
+                <Label [text]="item.mimeType" row="1" col="1" class="list-group-item-text body"></Label>
+                <Label [text]="item.description" row="2" col="1" class="list-group-item-text body2"></Label>
+                <Label [text]="item.createdTime" row="1" col="2" class="footnote"></Label>
+            </GridLayout>
+        </ng-template>
+    </ListView>
+    <ActivityIndicator
+        color="#7845ad"
+        row="1" 
+        rowSpan="2"
+        [busy]=" isLoading "
+        width="32" 
+        height="32"></ActivityIndicator>
+</GridLayout>
