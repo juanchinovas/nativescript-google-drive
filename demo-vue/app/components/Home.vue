@@ -7,18 +7,18 @@
         <GridLayout rows="auto, *">
             <GridLayout rows="auto, 5, auto" columns="*,*" backgroundColor="#f0f0f0">
                 <Button col="0" 
-                    text="&#xf2f6;  Sign In" @tap="onInit" class="fas btn btn-primary"
+                    text.decode="&#xf2f6;  Sign In" @tap="onInit" class="fas btn btn-primary"
                     :isEnabled= "isNotSignedInAndNotLoading"></Button>
-                <Button col="1" text="&#xf2f5;  Sign out" 
+                <Button col="1" text.decode="&#xf2f5;  Sign out" 
                     @tap="onPressToDisconnect" class="fas btn btn-primary btn-ruby"
                     :isEnabled= "isSignedInAndNotLoading"></Button>
                 
                 <StackLayout row="1" col="0" colSpan="2" class="hr-light"></StackLayout>
 
-                <Button row="2" col="0" text="&#xf477;  file" 
+                <Button row="2" col="0" text.decode="&#xf477;  file" 
                     @tap="onCreateFileEvent" class="fas btn btn-primary btn-blue"
                     :isEnabled= "isSignedInAndNotLoading"></Button>
-                <Button row="2" col="1" text="&#xf65e;  folder" 
+                <Button row="2" col="1" text.decode="&#xf65e;  folder" 
                     @tap="onCreateFolderEvent" class="fas btn btn-primary btn-brown"
                     :isEnabled= "isSignedInAndNotLoading"></Button>
             </GridLayout>
@@ -26,8 +26,8 @@
                 <v-template>
                     <GridLayout rows="auto,auto,auto" columns="50, *, auto" class="list-group-item p-x-8">
                         <Label 
-                            :text="item.mimeType == 'application/vnd.google-apps.folder' ? '&#xf07b;' :  '&#xf15c;'" 
-                            col="0" rowSpan="3" class="fas icon  p-r-8"></Label>
+                            :text="item.mimeType == 'application/vnd.google-apps.folder' ? '\uf07b' :  '\uf15c'" 
+                            col="0" rowSpan="3" class="fas icon  p-r-16"></Label>
                         <Label :text="item.name" col="1" class="h3 font-weight-bold"></Label>
                         <Label :text="item.mimeType" row="1" col="1" class="list-group-item-text body"></Label>
                         <Label :text="item.description" row="2" col="1" class="list-group-item-text body2"></Label>
@@ -437,14 +437,5 @@
 
     .info {
         font-size: 20;
-    }
-
-    .fas {
-        font-family: "Font Awesome 5 Free", "fa-solid-900";
-        font-weight: 400;
-    }
-
-    .fas.icon {
-        font-size: 32;
     }
 </style>

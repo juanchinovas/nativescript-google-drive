@@ -42,6 +42,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
         .then((helper: GoogleDriveHelper) => {
             this.driveHelper = helper;
             this.isSignedIn=true;
+            this.isLoading=false;
             this.onListFileFromParent();
         })
         .catch((err) => {

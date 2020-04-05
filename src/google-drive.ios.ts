@@ -49,7 +49,7 @@ export class GoogleDriveHelper implements IDriveManager {
     }
 
     /**
-     * Create a file with the specific metadata in Google Drive
+     * Create a file with the specified metadata in Google Drive
      *
      * @param {FileInfoContent} fileInfo file metadata
      *
@@ -166,7 +166,7 @@ export class GoogleDriveHelper implements IDriveManager {
     }
 
     /**
-     * Read a text plain file
+     * Read the content of plain text file
      * @param {string} driveFileId
      *
      * @returns {Promise<string>} text contained in the file
@@ -274,7 +274,7 @@ export class GoogleDriveHelper implements IDriveManager {
     }
 
     /**
-     * Upload a file with the specific metadata in Google Drive
+     * Upload a file with the specified metadata in Google Drive
      *
      * @param {FileInfoContent} fileInfo file metadata
      *

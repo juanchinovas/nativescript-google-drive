@@ -58,7 +58,7 @@
 		"typescript": "~3.4.5"
 	},
 	"dependencies": {
-		"nativescript-native-object-pool": "^1.0.0"
+		"nativescript-native-object-pool": "^1.0.1"
 	},
 	"bootstrapper": "nativescript-plugin-seed"
 }
