@@ -22,7 +22,11 @@
 		"ci.tslint": "npm i && tslint '**/*.ts' --config '../tslint.json' --exclude '**/node_modules/**' --exclude '**/platforms/**'",
 		"prepack": "npm run build.native",
 		"demo.ios": "npm i && cd ../demo && tns run ios",
+		"demo-angular.ios": "npm i && cd ../demo-angular && tns run ios",
+		"demo-vue.ios": "npm i && cd ../demo-vue && tns run ios",
 		"demo.android": "npm i && cd ../demo && tns run android",
+		"demo-angular.android": "npm i && cd ../demo-angular && tns run android",
+		"demo-vue.android": "npm i && cd ../demo-vue && tns run android",
 		"demo.reset": "cd ../demo && npx rimraf -- hooks node_modules platforms package-lock.json",
 		"plugin.prepare": "npm run build && cd ../demo && tns plugin remove nativescript-google-drive && tns plugin add ../src",
 		"clean": "npm run demo.reset && npx rimraf -- node_modules package-lock.json && npm i"

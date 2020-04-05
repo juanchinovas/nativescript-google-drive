@@ -589,7 +589,7 @@ class GIDSignInDelegateImpl extends NSObject implements GIDSignInDelegate {
 
     signInDidDisconnectWithUserWithError?(signIn: GIDSignIn, user: GIDGoogleUser, error: NSError): void {
         if (error) {
-            this.rejectPromise({code: error.code, msg: error.localizedDescription});
+            this.rejectPromise(error.localizedDescription);
             return;
         }
         this.resolvePromise(true);
@@ -597,7 +597,7 @@ class GIDSignInDelegateImpl extends NSObject implements GIDSignInDelegate {
 
     signInDidSignInForUserWithError(signIn: GIDSignIn, user: GIDGoogleUser, error: NSError): void {
         if (error) {
-            this.rejectPromise({ code: error.code, msg: error.localizedDescription });
+            this.rejectPromise(error.localizedDescription);
             return;
         }
 

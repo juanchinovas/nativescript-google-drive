@@ -15,18 +15,18 @@ export class HomeViewModel extends Observable {
         super();
         this.set("files", []);
         this.set("isLoading", true);
+        this.set("isSignedIn", false);
         setTimeout(() => {
             this.onInit();
         }, 3000);
     }
 
     onInit() {
-        // Android only
         const config: Config = {
             space: SPACES.APP_DATA_FOLDER,
             worker: MyWorker
         };
-        // iOS need the extra clientID
+        // iOS need this extra the clientID
         if (isIOS) {
             const googleClientID = "680729366979-1bf7aoceaf52ijj7k8fmcbavbstvbbcm.apps.googleusercontent.com";
             config.clientId = googleClientID;
@@ -35,9 +35,16 @@ export class HomeViewModel extends Observable {
         GoogleDriveHelper.singInOnGoogleDrive(config)
         .then((helper: GoogleDriveHelper) => {
             this.driveHelper = helper;
+            this.set("isSignedIn", true);
             this.onListFileFromParent();
         })
-        .catch(console.log);
+        .catch((err) => {
+            this.set("isLoading", false);
+            this.set("isSignedIn", false);
+            alert(err).then(() => {
+                console.log(err);
+            });
+        });
     }
 
     onAccionShow(event: ItemEventData) {
@@ -49,7 +56,7 @@ export class HomeViewModel extends Observable {
 
     onPressToDisconnect() {
         let options = {
-            title: "Select",
+            title: "Confirm",
             message: "Are you sure you want disconnect the google account?",
             okButtonText: "Yes",
             cancelButtonText: "No"
@@ -57,11 +64,20 @@ export class HomeViewModel extends Observable {
 
         confirm(options).then((result: boolean) => {
             if (result) {
+                this.set("isLoading", true);
                 this.driveHelper.signOut()
                 .then(done => {
                     console.log("done.: ", done);
+                    if (done) {
+                        this.set("isLoading", false);
+                        this.set("isSignedIn", false);
+                        this.set("files", []);
+                    }
                 })
-                .catch(console.log);
+                .catch(err => {
+                    console.log(err);
+                    this.set("isLoading", false);
+                });
             }
         });
     }
@@ -312,7 +328,7 @@ export class HomeViewModel extends Observable {
             actions = folderActions;
         }
         let options = {
-            title: "Selection",
+            title: `Action on ${fileInfo.name}`,
             message: "Choose action",
             cancelButtonText: "Cancel",
             actions
@@ -329,7 +345,7 @@ export class HomeViewModel extends Observable {
         }
         if (result === "Create file") {
             let options: PromptOptions = {
-                title: "Hey There",
+                title: result,
                 message: "Enter your name",
                 okButtonText: "OK",
                 cancelButtonText: "Cancel",
@@ -354,7 +370,7 @@ export class HomeViewModel extends Observable {
         }
         if (result === "Create folder") {
             let options: PromptOptions = {
-                title: "Hey There",
+                title: result,
                 message: "Enter your name",
                 okButtonText: "OK",
                 cancelButtonText: "Cancel",
@@ -368,5 +384,13 @@ export class HomeViewModel extends Observable {
                     this.onCreateFolder(fileInfo, result.text);
             });
         }
+    }
+
+    isNotSignedInAndNotLoading(): boolean {
+        return !this.get("isLoading") && !this.get("isSignedIn");
+    }
+
+    isSignedInAndNotLoading(): boolean {
+        return !this.get("isLoading") && this.get("isSignedIn");
     }
 }

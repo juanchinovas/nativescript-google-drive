@@ -55,7 +55,7 @@ export class GoogleDriveHelper implements IDriveManager {
                     }
                     return;
                 }
-                rej(`Google Drive access request was rejected. resultCode:${eventData.resultCode}`);
+                rej(`Google Drive access request was rejected.`);
             };
 
             const googleSignInClient = driveHelper.authOnGoogleDriveAccount(config);
@@ -76,12 +76,12 @@ export class GoogleDriveHelper implements IDriveManager {
         return new Promise((res, rej) => {
             fileInfo.mimeType = fileInfo.mimeType || "text/plain";
 
-            NativeObjectPool.add("parent", driveHelper.getRoot(fileInfo.parentId || __config.space));
+            NativeObjectPool.add("parents", driveHelper.getRoot(fileInfo.parentId || __config.space));
 
-            function createFileHelperFn(fileInfo: any, googleDriveService: any, parent: any): string {
+            function createFileHelperFn(fileInfo: any, googleDriveService: any, parents: any): string {
                 // @ts-ignore
                 const metadata = new com.google.api.services.drive.model.File();
-                metadata.setParents(parent)
+                metadata.setParents(parents)
                         .setName(fileInfo.name)
                         .setDescription(fileInfo.description)
                         .setMimeType(fileInfo.mimeType);
@@ -108,7 +108,7 @@ export class GoogleDriveHelper implements IDriveManager {
                 args: {
                     fileInfo,
                     googleDriveService: "-",
-                    parent: "+"
+                    parents: "+"
                 },
                 resPromise: res, 
                 rejPromise: rej,
@@ -129,17 +129,16 @@ export class GoogleDriveHelper implements IDriveManager {
         return new Promise((res, rej) => {
             fileInfo.mimeType = fileInfo.mimeType || "text/plain";
 
-            NativeObjectPool.add("parent", driveHelper.getRoot(fileInfo.parentId || __config.space));
+            NativeObjectPool.add("parents", driveHelper.getRoot(fileInfo.parentId || __config.space));
 
-            function updateFileHelperFn(fileInfo: FileInfoContent, googleDriveService: any, parent: any, isFile: boolean): boolean {
+            function updateFileHelperFn(fileInfo: FileInfoContent, googleDriveService: any, parents: any, isFile: boolean, hasUpdateMetadataPermission: boolean): boolean {
                 if (!fileInfo.content) {
                     throw "The file content cannot be null ";
                 }
                 // @ts-ignore
                 const metadata = new com.google.api.services.drive.model.File();
-                // @ts-ignore
-                if (__config.extraDriveScopes.indexOf(com.google.api.services.drive.DriveScopes.DRIVE_METADATA) !== -1) {
-                    metadata.setParents(parent)
+                if (hasUpdateMetadataPermission) {
+                    metadata.setParents(parents)
                         .setName(fileInfo.name)
                         .setDescription(fileInfo.description)
                         .setMimeType(fileInfo.mimeType);
@@ -169,8 +168,10 @@ export class GoogleDriveHelper implements IDriveManager {
                 args: {
                     fileInfo,
                     googleDriveService: "-",
-                    parent: "+",
-                    isFile: fileInfo.content instanceof File
+                    parents: "+",
+                    isFile: fileInfo.content instanceof File,
+                    // @ts-ignore
+                    hasUpdateMetadataPermission: __config.extraDriveScopes.indexOf(com.google.api.services.drive.DriveScopes.DRIVE_METADATA) !== -1
                 },
                 resPromise: res, 
                 rejPromise: rej,
@@ -277,7 +278,6 @@ export class GoogleDriveHelper implements IDriveManager {
      */
     uploadFile(fileInfo: FileInfo): Promise<string> {
         return new Promise((res, rej) => {
-
             NativeObjectPool.add("spaces", driveHelper.getRoot(fileInfo.parentId || __config.space));
             function uploadFileHelperFn(fileInfo: any, googleDriveService: any, spaces: any): string {
                 // @ts-ignore
@@ -326,31 +326,28 @@ export class GoogleDriveHelper implements IDriveManager {
      */
     listFilesByParent(parentId?:  string): Promise<Array<FileInfo>> {
         return new Promise((res, rej) => {
-
-            NativeObjectPool.add("spaces", driveHelper.getRoot(__config.space));
             function listFilesHelperFn(parentId: any, googleDriveService: any, spaces: any): Array<FileInfo> {
                 // @ts-ignore
                 const query = googleDriveService.files().list()
                     .setQ(`'${parentId}' in parents`)
                     .setFields("files(id, name,size,createdTime,description,mimeType, parents)")
-                    .setSpaces(spaces)
+                    .setSpaces(parentId)
                     .execute();
 
                 const files = query.getFiles();
-                const result = [];
+                const results = [];
                 for (let i = 0, len = files.size(); i < len; i++) {
-                    result.push(<FileInfo>{
+                    results.push(<FileInfo>{
                         name: files.get(i).getName(),
                         description: files.get(i).getDescription(),
                         mimeType: files.get(i).getMimeType(),
                         parentId: files.get(i).getParents().toString().replace("[", "").replace("]", ""),
                         id: files.get(i).getId(),
-                        size: files.get(i).getSize().floatValue(),
+                        size: files.get(i).getSize() && files.get(i).getSize().floatValue() || 0,
                         createdTime: new Date(Number(files.get(i).getCreatedTime().getValue()))
                     });
                 }
-
-                return result;
+                return results;
             }
 
             executeThread({
@@ -358,7 +355,7 @@ export class GoogleDriveHelper implements IDriveManager {
                 args: {
                     parentId: (parentId || __config.space),
                     googleDriveService: "-",
-                    spaces: "+"
+                    spaces: __config.space
                 },
                 resPromise: res, 
                 rejPromise: rej,
@@ -376,12 +373,11 @@ export class GoogleDriveHelper implements IDriveManager {
      */
     searchFiles(fileInfo: FileInfo): Promise<Array<FileInfo>> {
         return new Promise((res, rej) => {
-            NativeObjectPool.add("spaces", driveHelper.getRoot(__config.space));
             fileInfo.parentId = fileInfo.parentId || __config.space;
             function searchFilesHelperFn(fileInfo: any, googleDriveService: any, spaces: any): Array<FileInfo> {
                 let queryString = `'${fileInfo.parentId}' in parents`;
                 for (let key in fileInfo) {
-                    if (fileInfo[key] && ["parentId", "content", "description"].indexOf(key) === -1) {
+                    if (fileInfo[key] && ["parentId", "description"].indexOf(key) === -1) {
                         queryString +=  ` and ${key} = '${fileInfo[key]}'`;
                     }
                 }
@@ -401,7 +397,7 @@ export class GoogleDriveHelper implements IDriveManager {
                         mimeType: files.get(i).getMimeType(),
                         parentId: files.get(i).getParents().toString().replace("[", "").replace("]", ""),
                         id: files.get(i).getId(),
-                        size: files.get(i).getSize().floatValue(),
+                        size: files.get(i).getSize() && files.get(i).getSize().floatValue() || 0,
                         createdTime: new Date(Number(files.get(i).getCreatedTime().getValue()))
                     }));
                 }
@@ -413,7 +409,7 @@ export class GoogleDriveHelper implements IDriveManager {
                 args: {
                     fileInfo,
                     googleDriveService: "-",
-                    spaces: "+"
+                    spaces: __config.space
                 },
                 resPromise: res, 
                 rejPromise: rej,
@@ -473,8 +469,8 @@ export class GoogleDriveHelper implements IDriveManager {
     findFolder(name: string): Promise<Array<FileInfo>> {
         return new Promise((res, rej) => {
             NativeObjectPool.add("spaces", driveHelper.getRoot(__config.space));
-            function findFolderHelperFn(name: any, googleDriveService: any, spaces: java.util.List<string>): Array<FileInfo> {
-                let queryString = `name = '${name}' and '${spaces.get(0).toString()}' in parents and mimeType ='application/vnd.google-apps.folder'`;
+            function findFolderHelperFn(name: any, googleDriveService: any, spaces: string): Array<FileInfo> {
+                let queryString = `name = '${name}' and mimeType ='application/vnd.google-apps.folder'`;
                 const query = googleDriveService.files().list()
                     .setQ(queryString)
                     .setFields("files(id,name,size,createdTime,description,mimeType,parents)")
@@ -500,7 +496,7 @@ export class GoogleDriveHelper implements IDriveManager {
                 args: {
                     name,
                     googleDriveService: "-",
-                    spaces: "+"
+                    spaces: __config.space
                 },
                 resPromise: res, 
                 rejPromise: rej,

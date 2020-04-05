@@ -8,23 +8,21 @@
 
     <GridLayout rows="auto, *">
         <GridLayout rows="auto, 5, auto" columns="*,*" backgroundColor="#f0f0f0">
-            <!-- Add your page content here -->
             <Button col="0" 
-                visibility="{{ !driveHelper ? 'visible' : 'collapsed' }}"
-                text="&#xf2f6; Sign me In" tap="{{onInit}}" class="fas"
-                isEnabled= "{{!isLoading}}"></Button>
-            <Button col="1" text="&#xf2f5; Disconnect account" 
+                text="&#xf2f6;  Sign In" tap="{{onInit}}" class="fas btn btn-primary"
+                isEnabled= "{{ isNotSignedInAndNotLoading() }}"></Button>
+            <Button col="1" text="&#xf2f5;  Sign out" 
                 tap="{{onPressToDisconnect}}" class="fas btn btn-primary btn-ruby"
-                isEnabled= "{{!isLoading}}"></Button>
+                isEnabled= "{{ isSignedInAndNotLoading() }}"></Button>
             
             <StackLayout row="1" col="0" colSpan="2" class="hr-light"></StackLayout>
 
-            <Button row="2" col="0" text="&#xf477; file" 
+            <Button row="2" col="0" text="&#xf477;  file" 
                 tap="{{onCreateFileEvent}}" class="fas btn btn-primary btn-blue"
-                isEnabled= "{{!isLoading}}"></Button>
-            <Button row="2" col="1" text="&#xf65e; folder" 
+                isEnabled= "{{ isSignedInAndNotLoading() }}"></Button>
+            <Button row="2" col="1" text="&#xf65e;  folder" 
                 tap="{{onCreateFolderEvent}}" class="fas btn btn-primary btn-brown"
-                isEnabled= "{{!isLoading}}"></Button>
+                isEnabled= "{{ isSignedInAndNotLoading() }}"></Button>
         </GridLayout>
         <ListView row="1" items="{{ files }}" class="list-group" itemTap="{{ onAccionShow }}">
             <ListView.itemTemplate>
@@ -45,7 +43,7 @@
             row="1" 
             rowSpan="2"
             busy="{{ isLoading }}"
-            width="96" 
-            height="96"></ActivityIndicator>
+            width="32" 
+            height="32"></ActivityIndicator>
     </GridLayout>
 </Page>
