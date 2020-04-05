@@ -11,7 +11,7 @@
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/e/e8/Google_Drive_logo.svg" width="70px" height="50px" alt="Google Drive logo"/> Google Drive
 
-Upload, retrieve and delete files from your Nativescript app to Google Drive  
+Upload, retrieve and delete files from you Nativescript app to Google Drive  
 
 ## Prerequisites
 
@@ -146,7 +146,7 @@ The `FileInfoContent` interface's properties
 
 | Property | Type | Description |
 | --- | --- | --- |
-| content | `string | File` | Content of the file |
+| content | `string or File` | Content of the file |
 
 > `FileInfoContent` extends `FileInfo`
 
@@ -266,7 +266,3 @@ findFolder(name: string): Promise<Array<FileInfo>>;
  */
 signOut(): Promise<boolean>;
 ```
-
-## License
-
-Apache License Version 2.0, January 2004
