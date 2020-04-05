@@ -81,7 +81,7 @@
                     config.clientId = googleClientID;
                 }
 
-                GoogleDriveHelper.singInOnGoogleDrive(config)
+                GoogleDriveHelper.signInOnGoogleDrive(config)
                 .then((helper) => {
                     this.driveHelper = helper;
                     this.isSignedIn=true;

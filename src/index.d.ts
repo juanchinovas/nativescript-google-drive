@@ -10,7 +10,7 @@ export declare class GoogleDriveHelper implements IDriveManager {
      *
      * @returns {Promise<GoogleDriveHelper>}
      */
-    static singInOnGoogleDrive(config: Config): Promise<GoogleDriveHelper>;
+    static signInOnGoogleDrive(config: Config): Promise<GoogleDriveHelper>;
     /**
      * Create a file with the specified metadata in Google Drive
      *

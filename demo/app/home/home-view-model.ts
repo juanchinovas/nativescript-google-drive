@@ -32,7 +32,7 @@ export class HomeViewModel extends Observable {
             config.clientId = googleClientID;
         }
 
-        GoogleDriveHelper.singInOnGoogleDrive(config)
+        GoogleDriveHelper.signInOnGoogleDrive(config)
         .then((helper: GoogleDriveHelper) => {
             this.driveHelper = helper;
             this.set("isSignedIn", true);

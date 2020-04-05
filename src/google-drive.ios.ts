@@ -19,7 +19,7 @@ export class GoogleDriveHelper implements IDriveManager {
      *
      * @returns {Promise<GoogleDriveHelper>}
      */
-    static singInOnGoogleDrive(config: Config): Promise<GoogleDriveHelper> {
+    static signInOnGoogleDrive(config: Config): Promise<GoogleDriveHelper> {
         config.extraDriveScopes = config.extraDriveScopes || [];
         config.extraDriveScopes.unshift(driveHelper.getScope(config.space));
         config.extraDriveScopes.push(kGTLRAuthScopeDriveFile);

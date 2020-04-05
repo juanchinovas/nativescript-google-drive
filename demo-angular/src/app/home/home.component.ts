@@ -38,7 +38,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
             config.clientId = googleClientID;
         }
 
-        GoogleDriveHelper.singInOnGoogleDrive(config)
+        GoogleDriveHelper.signInOnGoogleDrive(config)
         .then((helper: GoogleDriveHelper) => {
             this.driveHelper = helper;
             this.isSignedIn=true;

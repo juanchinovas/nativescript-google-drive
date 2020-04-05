@@ -76,7 +76,7 @@ if (isIOS) {
     config.clientId = [CLIENT_ID];/*OAuth 2.0 client Id*/
 }
 
-GoogleDriveHelper.singInOnGoogleDrive(config)
+GoogleDriveHelper.signInOnGoogleDrive(config)
 .then((helper: GoogleDriveHelper) => {
     // TODO
 })
@@ -89,7 +89,7 @@ GoogleDriveHelper.singInOnGoogleDrive(config)
 
 ## API
 
-### singInOnGoogleDrive
+### signInOnGoogleDrive
 
 ```typescript
 /**
@@ -101,7 +101,7 @@ GoogleDriveHelper.singInOnGoogleDrive(config)
  *
  * @returns {Promise<GoogleDriveHelper>}
  */
-static singInOnGoogleDrive(config: Config): Promise<GoogleDriveHelper>;
+static signInOnGoogleDrive(config: Config): Promise<GoogleDriveHelper>;
 ```
 
 ```typescript
@@ -114,7 +114,7 @@ if (isIOS) {
     config.clientId = [CLIENT_ID];/*OAuth 2.0 client Id*/
 }
 
-GoogleDriveHelper.singInOnGoogleDrive(config)
+GoogleDriveHelper.signInOnGoogleDrive(config)
 .then((helper: GoogleDriveHelper) => {
     // TODO
 })
