@@ -7,7 +7,7 @@
     </ActionBar>
 
     <GridLayout rows="auto, *">
-        <GridLayout rows="auto, 5, auto" columns="*,*" backgroundColor="#f0f0f0">
+        <GridLayout rows="auto, 5, auto auto" columns="*,*" backgroundColor="#f0f0f0">
             <Button col="0" 
                 text="&#xf2f6;  Sign In" tap="{{onInit}}" class="fas btn btn-primary"
                 isEnabled= "{{ isNotSignedInAndNotLoading() }}"></Button>
@@ -22,6 +22,10 @@
                 isEnabled= "{{ isSignedInAndNotLoading() }}"></Button>
             <Button row="2" col="1" text="&#xf65e;  folder" 
                 tap="{{onCreateFolderEvent}}" class="fas btn btn-primary btn-brown"
+                isEnabled= "{{ isSignedInAndNotLoading() }}"></Button>
+
+            <Button row="3" col="0" colSpan="2" text="Upload file" 
+                tap="{{onUploadFile}}" class="fas btn btn-primary btn-lime"
                 isEnabled= "{{ isSignedInAndNotLoading() }}"></Button>
         </GridLayout>
         <ListView row="1" items="{{ files }}" class="list-group" itemTap="{{ onAccionShow }}">

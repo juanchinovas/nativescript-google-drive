@@ -6,7 +6,7 @@ export interface IDriveManager {
     readFileContent(driveFileId: string): Promise<string>;
     deleteFile(driveFileId: string): Promise<boolean>;
     downloadFile(driveFileId: string): Promise<File>;
-    uploadFile(fileInfo: FileInfo): Promise<string>;
+    uploadFile(fileInfo: FileInfoContent): Promise<string>;
     listFilesByParent(parentId?: string): Promise<Array<FileInfo>>;
     searchFiles(fileInfo: FileInfo): Promise<Array<FileInfo>>;
     createFolder(fileInfo: FileInfo): Promise<string>;

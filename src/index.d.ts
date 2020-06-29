@@ -52,11 +52,11 @@ export declare class GoogleDriveHelper implements IDriveManager {
     /**
      * Upload a file with the specified metadata in Google Drive
      *
-     * @param {FileInfo} fileInfo file metadata
+     * @param {FileInfoContent} fileInfo file metadata
      *
      * @returns {Promise<string>} uploaded file id
      */
-    uploadFile(fileInfo: FileInfo): Promise<string>;
+    uploadFile(fileInfo: FileInfoContent): Promise<string>;
     /**
      * List all the files contained in the parent or root folder
      * @param {string} parentId parent folder OPTIONAL

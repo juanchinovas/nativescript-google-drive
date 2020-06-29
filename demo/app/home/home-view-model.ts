@@ -7,6 +7,7 @@ import { ItemEventData } from "tns-core-modules/ui/list-view";
 // import * as  MyWorker from "nativescript-worker-loader!../test-worker";
 // @ts-ignore
 import * as  MyWorker from "nativescript-worker-loader!nativescript-google-drive/thread-worker";
+import { knownFolders } from "tns-core-modules/file-system";
 
 export class HomeViewModel extends Observable {
     driveHelper: GoogleDriveHelper;
@@ -14,11 +15,11 @@ export class HomeViewModel extends Observable {
     constructor() {
         super();
         this.set("files", []);
-        this.set("isLoading", true);
+        this.set("isLoading", false);
         this.set("isSignedIn", false);
-        setTimeout(() => {
+        /*setTimeout(() => {
             this.onInit();
-        }, 3000);
+        }, 3000);*/
     }
 
     onInit() {
@@ -37,6 +38,8 @@ export class HomeViewModel extends Observable {
             this.driveHelper = helper;
             this.set("isSignedIn", true);
             this.onListFileFromParent();
+            this.onFindFile();
+            this.onFindFolder();
         })
         .catch((err) => {
             this.set("isLoading", false);
@@ -187,6 +190,7 @@ export class HomeViewModel extends Observable {
     }
 
     onFindFile() {
+        console.log("Find file in drive");
         this.set("isLoading", true);
         const name = isIOS && "ios-back-up-test.json" || "android-back-up-test.json";
         this.driveHelper.searchFiles({
@@ -266,6 +270,7 @@ export class HomeViewModel extends Observable {
     }
 
     onFindFolder() {
+        console.log("Find folder in drive");
         this.set("isLoading", true);
         this.driveHelper.findFolder("config-folder")
         .then(foldersInfo => {
@@ -321,7 +326,7 @@ export class HomeViewModel extends Observable {
 
     __showOption(fileInfo: FileInfo) {
         const folderActions = ["Delete", "Create file", "Create folder", "List file"];
-        const fileActions = ["Read content", "Delete", "Update content"];
+        const fileActions = ["Read content", "Download", "Delete", "Update content"];
         let actions = fileActions;
 
         if (fileInfo.mimeType === "application/vnd.google-apps.folder") {
@@ -343,6 +348,17 @@ export class HomeViewModel extends Observable {
         if (result === "Delete") {
             this.onDeleteFile(fileInfo);
         }
+
+        if (result === "Download") {
+            this.set("isLoading", true);
+            this.driveHelper.downloadFile(fileInfo.id)
+            .then(file => {
+                alert(`File dowloanded.: ${file.path}`);
+                this.set("isLoading", false);
+            })
+            .catch(console.log);
+        }
+
         if (result === "Create file") {
             let options: PromptOptions = {
                 title: result,
@@ -386,11 +402,47 @@ export class HomeViewModel extends Observable {
         }
     }
 
+    onUploadFile() {
+        this.set("isLoading", true);
+        this.createFile()
+        .then(() => {
+            const fileInfo = <FileInfoContent>{
+                name: "temp_file.json",
+                content: knownFolders.temp().getFile("temp_file.json"),
+                description: "A test create a json file " + new Date(),
+                mimeType: "application/json"
+            };
+            this.driveHelper.uploadFile(fileInfo)
+            .then(foldersInfo => {
+                console.log(foldersInfo);
+                alert(foldersInfo);
+                this.set("isLoading", false);
+                this.onListFileFromParent();
+            })
+            .catch((a) => {
+                console.log(a);
+                this.set("isLoading", false);
+            });
+        })
+        .catch(console.log);
+    }
+
     isNotSignedInAndNotLoading(): boolean {
         return !this.get("isLoading") && !this.get("isSignedIn");
     }
 
     isSignedInAndNotLoading(): boolean {
         return !this.get("isLoading") && this.get("isSignedIn");
+    }
+
+    createFile() {
+        var folder = knownFolders.temp();
+        var file = folder.getFile("temp_file.json");
+        return file.writeText(`{
+            "name": "J.",
+            "lastName": "Novas",
+            "nameOfFile": "temp_file.json",
+            "date": '${new Date()}',
+        }`);
     }
 }

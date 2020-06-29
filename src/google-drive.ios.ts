@@ -291,9 +291,10 @@ export class GoogleDriveHelper implements IDriveManager {
                 metadata.mimeType = fileInfo.mimeType;
 
                 let uploader: GTLRDriveQuery_FilesCreate = null;
-                if (typeof(fileInfo.content) !== "string" && fileInfo.content._path) {
+                if (typeof(fileInfo.content) !== "string" && !fileInfo.content._path) {
                     throw "File couldn't be uploaded, file info content is not a File";
                 }
+                
                 const fileHandler = NSFileHandle.fileHandleForReadingAtPath(fileInfo.content._path);
                 const uploadParams = GTLRUploadParameters.uploadParametersWithFileHandleMIMEType(fileHandler, fileInfo.mimeType);
 
@@ -308,6 +309,7 @@ export class GoogleDriveHelper implements IDriveManager {
                     // @ts-ignore
                     onCompleted(file.identifier);
                 });
+                
             }
 
             executeThread({

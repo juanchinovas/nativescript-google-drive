@@ -5,7 +5,7 @@
         </ActionBar>
 
         <GridLayout rows="auto, *">
-            <GridLayout rows="auto, 5, auto" columns="*,*" backgroundColor="#f0f0f0">
+            <GridLayout rows="auto, 5, auto, auto" columns="*,*" backgroundColor="#f0f0f0">
                 <Button col="0" 
                     text.decode="&#xf2f6;  Sign In" @tap="onInit" class="fas btn btn-primary"
                     :isEnabled= "isNotSignedInAndNotLoading"></Button>
@@ -20,6 +20,9 @@
                     :isEnabled= "isSignedInAndNotLoading"></Button>
                 <Button row="2" col="1" text.decode="&#xf65e;  folder" 
                     @tap="onCreateFolderEvent" class="fas btn btn-primary btn-brown"
+                    :isEnabled= "isSignedInAndNotLoading"></Button>
+                <Button row="3" col="0" colSpan="2" text="Upload file" 
+                    @tap="onUploadFile" class="fas btn btn-primary btn-lime"
                     :isEnabled= "isSignedInAndNotLoading"></Button>
             </GridLayout>
             <ListView row="1" for="item in files" class="list-group" @itemTap="onAccionShow">
@@ -54,20 +57,21 @@
     import { ItemEventData } from "tns-core-modules/ui/list-view";
     // @ts-ignore
     import * as  MyWorker from "nativescript-worker-loader!nativescript-google-drive/thread-worker";
+    import { knownFolders } from "tns-core-modules/file-system";
 
     export default {
         data() {
             return {
                 driveHelper: null,
                 files: [],
-                isLoading: true,
+                isLoading: false,
                 isSignedIn: false
             }
         },
         created: function () {
-            setTimeout(() => {
+            /*setTimeout(() => {
                 this.onInit();
-            }, 3000);
+            }, 3000);*/
         },
         methods: {
             onInit() {
@@ -86,6 +90,8 @@
                     this.driveHelper = helper;
                     this.isSignedIn=true;
                     this.onListFileFromParent();
+                    this.onFindFile();
+                    this.onFindFolder();
                 })
                 .catch((err) => {
                     console.log(err);
@@ -350,7 +356,7 @@
             },
             __showOption(fileInfo) {
                 const folderActions = ["Delete", "Create file", "Create folder", "List file"];
-                const fileActions = ["Read content", "Delete", "Update content"];
+                const fileActions = ["Read content", "Delete", "Download", "Update content"];
                 let actions = fileActions;
 
                 if (fileInfo.mimeType === "application/vnd.google-apps.folder") {
@@ -370,6 +376,15 @@
             __actionOption(result, fileInfo) {
                 if (result === "Delete") {
                     this.onDeleteFile(fileInfo);
+                }
+                if (result === "Download") {
+                    this.isLoading = true;
+                    this.driveHelper.downloadFile(fileInfo.id)
+                    .then(file => {
+                        alert(`File dowloanded.: ${file.path}`);
+                        this.isLoading = false;
+                    })
+                    .catch(console.log);
                 }
                 if (result === "Create file") {
                     let options = {
@@ -412,6 +427,40 @@
                             this.onCreateFolder(fileInfo, result.text);
                     });
                 }
+            },
+            onUploadFile() {
+                this.isLoading = true;
+                this.createFile()
+                .then(() => {
+                    const fileInfo = {
+                        name: "temp_file.json",
+                        content: knownFolders.temp().getFile("temp_file.json"),
+                        description: "A test create a json file " + new Date(),
+                        mimeType: "application/json"
+                    };
+                    this.driveHelper.uploadFile(fileInfo)
+                    .then(foldersInfo => {
+                        console.log(foldersInfo);
+                        alert(foldersInfo);
+                        this.isLoading = false;
+                        this.onListFileFromParent();
+                    })
+                    .catch((a) => {
+                        console.log(a);
+                        this.isLoading = false;
+                    });
+                })
+                .catch(console.log);
+            },
+            createFile() {
+                var folder = knownFolders.temp();
+                var file = folder.getFile("temp_file.json");
+                return file.writeText(`{
+                    "name": "J.",
+                    "lastName": "Novas",
+                    "nameOfFile": "temp_file.json",
+                    "date": '${new Date()}',
+                }`);
             }
         },
         computed: {

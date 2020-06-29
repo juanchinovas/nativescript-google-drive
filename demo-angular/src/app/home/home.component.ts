@@ -5,7 +5,7 @@ import { confirm, action, alert, prompt, PromptResult, inputType, capitalization
 import { ItemEventData } from "tns-core-modules/ui/list-view";
 // @ts-ignore
 import * as  MyWorker from "nativescript-worker-loader!nativescript-google-drive/thread-worker";
-
+import { knownFolders } from "tns-core-modules/file-system";
 @Component({
     selector: "ns-home",
     moduleId: module.id,
@@ -15,7 +15,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     
     private driveHelper: GoogleDriveHelper;
     files: Array<FileInfo> = [];
-    isLoading = true;
+    isLoading = false;
     isSignedIn = false;
     
     constructor() { }
@@ -24,7 +24,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     }
 
     ngAfterViewInit(): void {
-        this.onInit();
+        //this.onInit();
     }
 
     onInit() {
@@ -44,6 +44,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
             this.isSignedIn=true;
             this.isLoading=false;
             this.onListFileFromParent();
+            this.onFindFile();
+            this.onFindFolder();
         })
         .catch((err) => {
             console.log(err);
@@ -323,7 +325,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
 
     __showOption(fileInfo: FileInfo) {
         const folderActions = ["Delete", "Create file", "Create folder", "List file"];
-        const fileActions = ["Read content", "Delete", "Update content"];
+        const fileActions = ["Read content", "Delete", "Download", "Update content"];
         let actions = fileActions;
 
         if (fileInfo.mimeType === "application/vnd.google-apps.folder") {
@@ -344,6 +346,15 @@ export class HomeComponent implements OnInit, AfterViewInit {
     __actionOption(result: string, fileInfo: FileInfo) {
         if (result === "Delete") {
             this.onDeleteFile(fileInfo);
+        }
+        if (result === "Download") {
+            this.isLoading = true;
+            this.driveHelper.downloadFile(fileInfo.id)
+            .then(file => {
+                alert(`File dowloanded.: ${file.path}`);
+                this.isLoading = false;
+            })
+            .catch(console.log);
         }
         if (result === "Create file") {
             let options: PromptOptions = {
@@ -394,5 +405,41 @@ export class HomeComponent implements OnInit, AfterViewInit {
 
     isSignedInAndNotLoading(): boolean {
         return !this.isLoading && this.isSignedIn;
+    }
+
+    onUploadFile() {
+        this.isLoading = true;
+        this.createFile()
+        .then(() => {
+            const fileInfo = <FileInfoContent>{
+                name: "temp_file.json",
+                content: knownFolders.temp().getFile("temp_file.json"),
+                description: "A test create a json file " + new Date(),
+                mimeType: "application/json"
+            };
+            this.driveHelper.uploadFile(fileInfo)
+            .then(foldersInfo => {
+                console.log(foldersInfo);
+                alert(foldersInfo);
+                this.isLoading = false;
+                this.onListFileFromParent();
+            })
+            .catch((a) => {
+                console.log(a);
+                this.isLoading = false;
+            });
+        })
+        .catch(console.log);
+    }
+
+    createFile() {
+        var folder = knownFolders.temp();
+        var file = folder.getFile("temp_file.json");
+        return file.writeText(`{
+            "name": "J.",
+            "lastName": "Novas",
+            "nameOfFile": "temp_file.json",
+            "date": '${new Date()}',
+        }`);
     }
 }
